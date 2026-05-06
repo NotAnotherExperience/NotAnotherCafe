@@ -1,0 +1,56 @@
+{
+  "consoles": [
+    {
+      "id": "ps5-1",
+      "name": "PS5 Console 1",
+      "station": "Red Bay",
+      "walkInStatus": "available"
+    },
+    {
+      "id": "ps5-2",
+      "name": "PS5 Console 2",
+      "station": "White Bay",
+      "walkInStatus": "available"
+    }
+  ],
+  "bookings": [],
+  "orders": [],
+  "menu": [
+    {
+      "id": "gg-fries",
+      "category": "GG Snacks",
+      "name": "GG Loaded Fries",
+      "price": 189
+    },
+    {
+      "id": "cheese-bites",
+      "category": "GG Snacks",
+      "name": "Crispy Cheese Bites",
+      "price": 169
+    },
+    {
+      "id": "peri-popcorn",
+      "category": "GG Snacks",
+      "name": "Peri Peri Popcorn",
+      "price": 139
+    },
+    {
+      "id": "red-fizz",
+      "category": "GG Bev",
+      "name": "Red Strip Fizz",
+      "price": 129
+    },
+    {
+      "id": "cold-coffee",
+      "category": "GG Bev",
+      "name": "GG Cold Coffee",
+      "price": 149
+    },
+    {
+      "id": "white-soda",
+      "category": "GG Bev",
+      "name": "White Neon Soda",
+      "price": 119
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "not-a-cafe-gg",
+  "version": "1.0.0",
+  "description": "Full stack booking and pre-order website for GG - Not Another Cafe.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "gg",
+    "cafe",
+    "ps5",
+    "booking"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

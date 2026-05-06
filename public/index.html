@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GG | Not Another Cafe</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="wall-doodles" aria-hidden="true">
+      <span>PLAY</span><span>GG</span><span>FC26</span><span>XO</span><span>BEV</span><span>PS5</span>
+      <span>NOT</span><span>SNACK</span><span>VS</span><span>CHALK</span><span>CTRL</span><span>STAY</span>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="GG home">
+        <span class="brand-mark">GG</span>
+        <span>
+          <strong>GG</strong>
+          <small>Not Another Cafe</small>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#availability">Live</a>
+        <a href="#book">Book + Menu</a>
+        <a href="/philosophy.html">Philosophy</a>
+        <a href="/admin.html">Vibe Officers</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="home" class="hero-section">
+        <div class="strip strip-red"></div>
+        <div class="strip strip-yellow"></div>
+        <div class="hero-copy">
+          <p class="eyebrow">Not a cafe. Not a waiting room. Not another plan.</p>
+          <h1>GG</h1>
+          <p class="punchline">Not Another Cafe</p>
+          <p class="brief-placeholder">
+            Most places are built for you to show up, consume, and leave. Not Another Cafe was built for something
+            else. We are not a cafe that does other things. We are a space that refuses to be just one thing, because
+            you were never just one thing either. Come for the GG Bev. Stay for the games. Leave with chalk art that
+            was your idea. Or do not leave at all. The moment you stop being a customer and start being part of
+            something, that is when a place stops being just another cafe.
+          </p>
+          <div class="brand-lines" aria-label="Brand idea">
+            <span>Not Another Cafe</span>
+            <span>Not Another Experience</span>
+            <span>Not Another You</span>
+          </div>
+          <div class="hero-actions">
+            <a class="primary-action" href="#book">Book your game</a>
+            <a class="secondary-action" href="#book">See GG Menu</a>
+          </div>
+        </div>
+        <aside class="live-panel" aria-label="Current PS5 availability">
+          <div class="panel-heading">
+            <span>Live Console Status</span>
+            <span id="lastUpdated">Syncing...</span>
+          </div>
+          <div id="consoleStatus" class="console-grid"></div>
+        </aside>
+      </section>
+
+      <section id="availability" class="content-band">
+        <div class="section-heading">
+          <p class="eyebrow">Before you arrive</p>
+          <h2>Know the room before you walk in</h2>
+          <p>
+            The website keeps checking the GG backend. If a confirmed booking is active, that PS5 shows as booked.
+            Vibe Officers can also mark a console as occupied or under maintenance from their side.
+          </p>
+        </div>
+        <div id="upcomingBookings" class="timeline"></div>
+      </section>
+
+      <section id="book" class="experience-section">
+        <div class="section-heading experience-heading">
+          <p class="eyebrow">Book + Menu</p>
+          <h2>Lock the console. Line up the snacks.</h2>
+          <p>
+            Game bookings and GG Menu sit together because that is how people arrive: one plan, one group, one table,
+            one console, and something from the counter already waiting.
+          </p>
+        </div>
+
+        <div class="experience-grid">
+          <form id="bookingForm" class="form-surface booking-card">
+            <div>
+              <p class="eyebrow">Play slot</p>
+              <h3>Book your game</h3>
+            </div>
+            <div class="rate-board" aria-label="Play pricing">
+              <div>
+                <strong>Regular games</strong>
+                <span>Rs 100 / 30 min</span>
+                <span>Rs 180 / 1 hr</span>
+              </div>
+              <div>
+                <strong>FC26 Premium</strong>
+                <span>Rs 70</span>
+                <span>17 min max game</span>
+              </div>
+            </div>
+            <label>
+              Name
+              <input name="playerName" type="text" placeholder="Player name" required />
+            </label>
+            <label>
+              Phone
+              <input name="phone" type="tel" placeholder="Contact number" required />
+            </label>
+            <label>
+              Console
+              <select name="consoleId" required>
+                <option value="ps5-1">PS5 Console 1 - Red Bay</option>
+                <option value="ps5-2">PS5 Console 2 - Yellow Bay</option>
+              </select>
+            </label>
+            <label>
+              Start time
+              <input name="startTime" type="datetime-local" required />
+            </label>
+            <label>
+              Game
+              <select name="gameType" required>
+                <option value="regular" selected>Regular game</option>
+                <option value="fc26">FC26 premium</option>
+              </select>
+            </label>
+            <label>
+              Slot
+              <select name="durationMinutes" required>
+                <option value="30">30 minutes - Rs 100</option>
+                <option value="60" selected>1 hour - Rs 180</option>
+              </select>
+            </label>
+            <p id="pricePreview" class="price-preview">Regular game: Rs 180 for 1 hour</p>
+            <fieldset>
+              <legend>Add GG snacks and bev</legend>
+              <div id="bookingMenu" class="check-list"></div>
+            </fieldset>
+            <button class="primary-action" type="submit">Confirm booking</button>
+            <p id="bookingMessage" class="form-message" role="status"></p>
+          </form>
+
+          <form id="orderForm" class="form-surface menu-card-panel">
+            <div>
+              <p class="eyebrow">GG Menu</p>
+              <h3>Pre-order GG Snacks and GG Bev</h3>
+            </div>
+            <label>
+              Name
+              <input name="customerName" type="text" placeholder="Customer name" required />
+            </label>
+            <label>
+              Phone
+              <input name="phone" type="tel" placeholder="Contact number" required />
+            </label>
+            <label>
+              Pickup time
+              <input name="pickupTime" type="datetime-local" required />
+            </label>
+            <fieldset>
+              <legend>Choose items</legend>
+              <div id="orderMenu" class="menu-grid"></div>
+            </fieldset>
+            <button class="primary-action" type="submit">Place pre-order</button>
+            <p id="orderMessage" class="form-message" role="status"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>GG</span>
+      <span>Not Another Cafe</span>
+      <span>PS5 bookings + GG Menu</span>
+    </footer>
+
+    <script src="/experience.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
