@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "gg-admin";
 const SESSION_SECRET = process.env.SESSION_SECRET || "not-a-cafe-local-secret";
 const DATA_DIR = path.join(__dirname, "data");
-const DB_PATH = path.join(DATA_DIR, "db.json");
+const DB_PATH = process.env.VERCEL ? path.join("/tmp", "gg-db.json") : path.join(DATA_DIR, "db.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const DEFAULT_DB = {
@@ -501,7 +501,7 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-const server = http.createServer((req, res) => {
+function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (url.pathname.startsWith("/api/")) {
     handleApi(req, res, url.pathname);
@@ -509,9 +509,14 @@ const server = http.createServer((req, res) => {
   }
 
   serveStatic(req, res, url.pathname);
-});
+}
 
-ensureDb();
-server.listen(PORT, () => {
-  console.log(`GG is live at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  ensureDb();
+  const server = http.createServer(handleRequest);
+  server.listen(PORT, () => {
+    console.log(`GG is live at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { handleRequest };
