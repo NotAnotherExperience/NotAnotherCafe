@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -7,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "gg-admin";
 const SESSION_SECRET = process.env.SESSION_SECRET || "not-a-cafe-local-secret";
 const DATA_DIR = path.join(__dirname, "data");
-const DB_PATH = process.env.VERCEL ? path.join("/tmp", "gg-db.json") : path.join(DATA_DIR, "db.json");
+const DB_PATH = process.env.VERCEL ? path.join(os.tmpdir(), "gg-db.json") : path.join(DATA_DIR, "db.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const DEFAULT_DB = {
@@ -36,9 +37,13 @@ const MIME_TYPES = {
 };
 
 function ensureDb() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
+    const seedPath = path.join(DATA_DIR, "db.json");
+    const seedDb = fs.existsSync(seedPath) ? fs.readFileSync(seedPath, "utf8") : JSON.stringify(DEFAULT_DB, null, 2);
+    fs.writeFileSync(DB_PATH, seedDb);
   }
 }
 
@@ -502,13 +507,25 @@ function serveStatic(req, res, pathname) {
 }
 
 function handleRequest(req, res) {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  if (url.pathname.startsWith("/api/")) {
-    handleApi(req, res, url.pathname);
-    return;
-  }
+  try {
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (url.pathname.startsWith("/api/")) {
+      Promise.resolve(handleApi(req, res, url.pathname)).catch((error) => {
+        console.error(error);
+        if (!res.headersSent) {
+          sendJson(res, 500, { error: "Server error. Please try again shortly." });
+        } else {
+          res.end();
+        }
+      });
+      return;
+    }
 
-  serveStatic(req, res, url.pathname);
+    serveStatic(req, res, url.pathname);
+  } catch (error) {
+    console.error(error);
+    sendJson(res, 500, { error: "Server error. Please try again shortly." });
+  }
 }
 
 if (require.main === module) {
