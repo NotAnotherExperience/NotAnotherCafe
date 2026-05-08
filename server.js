@@ -14,17 +14,26 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const DEFAULT_DB = {
   consoles: [
     { id: "ps5-1", name: "PS5 Console 1", station: "Red Bay", walkInStatus: "available" },
-    { id: "ps5-2", name: "PS5 Console 2", station: "White Bay", walkInStatus: "available" }
+    { id: "ps5-2", name: "PS5 Console 2", station: "Yellow Bay", walkInStatus: "available" }
   ],
   bookings: [],
-  orders: [],
+  communityMembers: [],
   menu: [
-    { id: "gg-fries", category: "GG Snacks", name: "GG Loaded Fries", price: 189 },
-    { id: "cheese-bites", category: "GG Snacks", name: "Crispy Cheese Bites", price: 169 },
-    { id: "peri-popcorn", category: "GG Snacks", name: "Peri Peri Popcorn", price: 139 },
-    { id: "red-fizz", category: "GG Bev", name: "Red Strip Fizz", price: 129 },
-    { id: "cold-coffee", category: "GG Bev", name: "GG Cold Coffee", price: 149 },
-    { id: "white-soda", category: "GG Bev", name: "White Neon Soda", price: 119 }
+    { id: "gg-salad-blue", category: "GG Snack", subcategory: "GG Snack", name: "Blue Lays", price: 60 },
+    { id: "gg-salad-orange", category: "GG Snack", subcategory: "GG Snack", name: "Orange Lays", price: 60 },
+    { id: "gg-salad-green", category: "GG Snack", subcategory: "GG Snack", name: "Green Lays", price: 60 },
+    { id: "gg-salad-red", category: "GG Snack", subcategory: "GG Snack", name: "Red Lays", price: 60 },
+    { id: "gg-salad-dark-green", category: "GG Snack", subcategory: "GG Snack", name: "Dark Green Lays", price: 60 },
+    { id: "watermelon-crush", category: "GG Bev", subcategory: "Iced", name: "Watermelon Crush", price: 0 },
+    { id: "strawberry-crush", category: "GG Bev", subcategory: "Iced", name: "Strawberry Crush", price: 0 },
+    { id: "green-apple-crush", category: "GG Bev", subcategory: "Iced", name: "Green Apple Crush", price: 0 },
+    { id: "peach-crush", category: "GG Bev", subcategory: "Iced", name: "Peach Crush", price: 0 },
+    { id: "peach-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Peach Ice Tea", price: 0 },
+    { id: "watermelon-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Watermelon Ice Tea", price: 0 },
+    { id: "strawberry-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Strawberry Ice Tea", price: 0 },
+    { id: "green-apple-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Green Apple Ice Tea", price: 0 },
+    { id: "green-tea", category: "GG Bev", subcategory: "Hot", name: "Green Tea", price: 0 },
+    { id: "hot-peach-tea", category: "GG Bev", subcategory: "Hot", name: "Hot Peach Tea", price: 0 }
   ]
 };
 
@@ -33,7 +42,13 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml; charset=utf-8"
+  ".svg": "image/svg+xml; charset=utf-8",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm"
 };
 
 function ensureDb() {
@@ -249,7 +264,12 @@ function validateBookingInput(db, input) {
 
   const menuIds = new Set(db.menu.map((item) => item.id));
   const snackIds = Array.isArray(input.snackIds) ? input.snackIds.filter((id) => menuIds.has(id)) : [];
-  return { playerName, phone, startTime, endTime, snackIds, ...playSlot };
+  const vibeNote = String(input.vibeNote || "").trim().slice(0, 80);
+  return { playerName, phone, startTime, endTime, snackIds, vibeNote, ...playSlot };
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
 }
 
 async function handleApi(req, res, pathname) {
@@ -298,6 +318,51 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "POST" && pathname === "/api/community-members") {
+    try {
+      const body = await readBody(req);
+      const phone = normalizePhone(body.phone);
+      const identity = String(body.identity || "Regular").trim().slice(0, 40) || "Regular";
+      const alias = String(body.alias || `Not Another ${identity}`).trim().slice(0, 80);
+      const displayName = String(body.displayName || "").trim().slice(0, 40);
+
+      if (phone.length !== 10) {
+        sendJson(res, 400, { error: "A valid 10 digit Indian phone number is required." });
+        return;
+      }
+
+      if (!Array.isArray(db.communityMembers)) db.communityMembers = [];
+
+      const existing = db.communityMembers.find((member) => member.phone === phone);
+      const timestamp = new Date().toISOString();
+      if (existing) {
+        existing.identity = identity;
+        existing.alias = alias;
+        existing.displayName = displayName;
+        existing.updatedAt = timestamp;
+        writeDb(db);
+        sendJson(res, 200, { member: existing });
+        return;
+      }
+
+      const member = {
+        id: crypto.randomUUID(),
+        phone,
+        identity,
+        alias,
+        displayName,
+        joinedAt: timestamp,
+        updatedAt: timestamp
+      };
+      db.communityMembers.push(member);
+      writeDb(db);
+      sendJson(res, 201, { member });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
   if (req.method === "POST" && pathname === "/api/menu") {
     if (!requireAdmin(req, res)) return;
     try {
@@ -306,8 +371,8 @@ async function handleApi(req, res, pathname) {
       const category = String(body.category || "").trim();
       const price = Number(body.price);
 
-      if (!name || !["GG Snacks", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
-        sendJson(res, 400, { error: "Menu item needs a name, GG Snacks/GG Bev category, and a valid price." });
+      if (!name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
+        sendJson(res, 400, { error: "Menu item needs a name, GG Snack/GG Bev category, and a valid price." });
         return;
       }
 
@@ -339,7 +404,7 @@ async function handleApi(req, res, pathname) {
       const category = String(body.category || "").trim();
       const price = Number(body.price);
 
-      if (!item || !name || !["GG Snacks", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
+      if (!item || !name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
         sendJson(res, 400, { error: "Choose an existing item and enter valid menu details." });
         return;
       }
@@ -401,6 +466,7 @@ async function handleApi(req, res, pathname) {
         durationMinutes: valid.durationMinutes,
         playPrice: valid.playPrice,
         snackIds: valid.snackIds,
+        vibeNote: valid.vibeNote,
         status: "confirmed",
         createdAt: new Date().toISOString()
       };
@@ -408,38 +474,6 @@ async function handleApi(req, res, pathname) {
       db.bookings.push(booking);
       writeDb(db);
       sendJson(res, 201, { booking: publicBooking(booking) });
-    } catch (error) {
-      sendJson(res, 400, { error: error.message });
-    }
-    return;
-  }
-
-  if (req.method === "POST" && pathname === "/api/orders") {
-    try {
-      const body = await readBody(req);
-      const customerName = String(body.customerName || "").trim();
-      const phone = String(body.phone || "").trim();
-      const pickupTime = parseDate(body.pickupTime);
-      const menuIds = new Set(db.menu.map((item) => item.id));
-      const items = Array.isArray(body.items) ? body.items.filter((id) => menuIds.has(id)) : [];
-
-      if (!customerName || !phone || !pickupTime || items.length === 0) {
-        sendJson(res, 400, { error: "Name, phone, pickup time, and at least one item are required." });
-        return;
-      }
-
-      const order = {
-        id: crypto.randomUUID(),
-        customerName,
-        phone,
-        pickupTime: pickupTime.toISOString(),
-        items,
-        status: "received",
-        createdAt: new Date().toISOString()
-      };
-      db.orders.push(order);
-      writeDb(db);
-      sendJson(res, 201, { order });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
     }

@@ -1,215 +1,398 @@
-const consoleStatus = document.querySelector("#consoleStatus");
-const upcomingBookings = document.querySelector("#upcomingBookings");
-const lastUpdated = document.querySelector("#lastUpdated");
-const bookingForm = document.querySelector("#bookingForm");
-const orderForm = document.querySelector("#orderForm");
-const bookingMenu = document.querySelector("#bookingMenu");
-const orderMenu = document.querySelector("#orderMenu");
-const bookingMessage = document.querySelector("#bookingMessage");
-const orderMessage = document.querySelector("#orderMessage");
-const pricePreview = document.querySelector("#pricePreview");
+const screens = {
+  menu: document.querySelector("#screen-menu"),
+  booking: document.querySelector("#screen-booking"),
+  profile: document.querySelector("#screen-profile"),
+  thought: document.querySelector("#screen-thought"),
+  thanks: document.querySelector("#screen-thanks")
+};
 
-const formatTime = new Intl.DateTimeFormat("en-IN", {
-  hour: "numeric",
-  minute: "2-digit",
-  day: "2-digit",
-  month: "short"
-});
+const communityMenu = document.querySelector("#communityMenu");
+const wallQuote = document.querySelector("#wallQuote");
+const thoughtItems = document.querySelector("#thoughtItems");
+const thoughtForm = document.querySelector("#thoughtForm");
+const profileForm = document.querySelector("#profileForm");
+const profileChip = document.querySelector("#profileChip");
+const profilePrompt = document.querySelector("#profilePrompt");
+const profileMessage = document.querySelector("#profileMessage");
+const aliasPreview = document.querySelector("#aliasPreview");
+const thanksCount = document.querySelector("#thanksCount");
+const postedThought = document.querySelector("#postedThought");
+const thoughtButton = document.querySelector("#thoughtButton");
+const thoughtActions = document.querySelector("#thoughtActions");
+const VOUCH_STORAGE_VERSION = "2026-05-10-zero-vouches";
 
-function setDefaultDateTime(input) {
-  const date = new Date(Date.now() + 30 * 60 * 1000);
-  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
-  input.value = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+if (localStorage.getItem("gg-vouch-storage-version") !== VOUCH_STORAGE_VERSION) {
+  localStorage.removeItem("gg-vouched-items");
+  localStorage.removeItem("gg-menu-stats");
+  localStorage.setItem("gg-vouch-storage-version", VOUCH_STORAGE_VERSION);
 }
 
+const fallbackMenu = [
+  { id: "gg-salad-blue", category: "GG Snack", subcategory: "GG Snack", name: "Blue Lays", price: 60 },
+  { id: "gg-salad-orange", category: "GG Snack", subcategory: "GG Snack", name: "Orange Lays", price: 60 },
+  { id: "gg-salad-green", category: "GG Snack", subcategory: "GG Snack", name: "Green Lays", price: 60 },
+  { id: "gg-salad-red", category: "GG Snack", subcategory: "GG Snack", name: "Red Lays", price: 60 },
+  { id: "gg-salad-dark-green", category: "GG Snack", subcategory: "GG Snack", name: "Dark Green Lays", price: 60 },
+  { id: "watermelon-crush", category: "GG Bev", subcategory: "Iced", name: "Watermelon Crush", price: 0 },
+  { id: "strawberry-crush", category: "GG Bev", subcategory: "Iced", name: "Strawberry Crush", price: 0 },
+  { id: "green-apple-crush", category: "GG Bev", subcategory: "Iced", name: "Green Apple Crush", price: 0 },
+  { id: "peach-crush", category: "GG Bev", subcategory: "Iced", name: "Peach Crush", price: 0 },
+  { id: "peach-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Peach Ice Tea", price: 0 },
+  { id: "watermelon-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Watermelon Ice Tea", price: 0 },
+  { id: "strawberry-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Strawberry Ice Tea", price: 0 },
+  { id: "green-apple-ice-tea", category: "GG Bev", subcategory: "Iced", name: "Green Apple Ice Tea", price: 0 },
+  { id: "green-tea", category: "GG Bev", subcategory: "Hot", name: "Green Tea", price: 0 },
+  { id: "hot-peach-tea", category: "GG Bev", subcategory: "Hot", name: "Hot Peach Tea", price: 0 }
+];
+
+const itemDetails = {
+  "gg-salad-blue": {
+    description: "Blue Lays tossed with cucumber, onion, green chilli, coriander, lemon mustard, ketchup, and mayo.",
+    vouches: 0
+  },
+  "gg-salad-orange": {
+    description: "Orange Lays with cucumber, onion, chilli, coriander, lemon mustard, ketchup, and mayo.",
+    vouches: 0
+  },
+  "gg-salad-green": {
+    description: "Green Lays made messy in the best way with the house chopped mix and sauces.",
+    vouches: 0
+  },
+  "gg-salad-red": {
+    description: "Red Lays with cucumber, onion, green chilli, coriander, lemon mustard, ketchup, and mayo.",
+    vouches: 0
+  },
+  "gg-salad-dark-green": {
+    description: "Dark Green Lays with cucumber, onion, chilli, coriander, lemon mustard, ketchup, and mayo.",
+    vouches: 0
+  },
+  "watermelon-crush": {
+    description: "Iced watermelon crush, bright and cold for the middle of a session.",
+    vouches: 0
+  },
+  "strawberry-crush": {
+    description: "Iced strawberry crush with a sweet cafe-counter finish.",
+    vouches: 0
+  },
+  "green-apple-crush": {
+    description: "Iced green apple crush, sharp, fizzy, and easy to sip between games.",
+    vouches: 0
+  },
+  "peach-crush": {
+    description: "Iced peach crush for a softer, fruitier break from the screen.",
+    vouches: 0
+  },
+  "peach-ice-tea": {
+    description: "Cold peach ice tea, light enough to keep next to the controller.",
+    vouches: 0
+  },
+  "watermelon-ice-tea": {
+    description: "Cold watermelon ice tea with a clean fruit finish.",
+    vouches: 0
+  },
+  "strawberry-ice-tea": {
+    description: "Cold strawberry ice tea for a softer iced drink.",
+    vouches: 0
+  },
+  "green-apple-ice-tea": {
+    description: "Cold green apple ice tea with a crisp, tart edge.",
+    vouches: 0
+  },
+  "green-tea": {
+    description: "Hot green tea for the quieter table reset.",
+    vouches: 0
+  },
+  "hot-peach-tea": {
+    description: "Hot peach tea, warm and mellow for late sessions.",
+    vouches: 0
+  }
+};
+
+const communityThoughts = [
+  { itemId: "gg-salad-blue", alias: "Not Another Crunch", text: "Blue Lays is my first pick next time." },
+  { itemId: "peach-ice-tea", alias: "Not Another Regular", text: "Peach ice tea after the spicy salad makes sense." },
+  { itemId: "gg-salad-orange", alias: "Not Another Player", text: "Orange Lays disappeared before the match loaded." }
+];
+
+let menuItems = [];
+let vouched = new Set(JSON.parse(localStorage.getItem("gg-vouched-items") || "[]"));
+let memberCount = Number(localStorage.getItem("gg-founder-count") || 47);
+let profile = JSON.parse(localStorage.getItem("gg-community-profile") || "null");
+let savedStats = JSON.parse(localStorage.getItem("gg-menu-stats") || "{}");
+
 function money(value) {
+  if (Number(value) === 0) return "Price TBD";
   return `Rs ${value}`;
 }
 
-function statusLabel(status) {
-  if (status === "booked") return "Booked now";
-  if (status === "occupied") return "Walk-in occupied";
-  if (status === "maintenance") return "Maintenance";
-  return "Available now";
+function makeAlias(identity = "Regular") {
+  return `Not Another ${identity}`;
 }
 
-function updatePricePreview() {
-  const gameType = bookingForm.elements.gameType.value;
-  const durationSelect = bookingForm.elements.durationMinutes;
-
-  if (gameType === "fc26") {
-    durationSelect.disabled = true;
-    pricePreview.textContent = "FC26 premium: Rs 70 for one 17-minute max match";
-    return;
-  }
-
-  durationSelect.disabled = false;
-  const price = durationSelect.value === "30" ? 100 : 180;
-  const label = durationSelect.value === "30" ? "30 minutes" : "1 hour";
-  pricePreview.textContent = `Regular game: Rs ${price} for ${label}`;
+function currentAlias() {
+  return profile?.alias || "Not Another Guest";
 }
 
-function renderAvailability(consoles, serverTime) {
-  consoleStatus.innerHTML = consoles
-    .map((item) => {
-      const details = item.currentBooking
-        ? `Booked by ${item.currentBooking.playerName} until ${formatTime.format(new Date(item.currentBooking.endTime))}`
-        : `${item.station} is ready for the next player.`;
-      return `
-        <article class="console-card">
-          <span class="status-pill status-${item.status}">${statusLabel(item.status)}</span>
-          <h3>${item.name}</h3>
-          <div class="console-meta">${details}</div>
-        </article>
-      `;
-    })
-    .join("");
-
-  lastUpdated.textContent = `Updated ${formatTime.format(new Date(serverTime))}`;
+function enrichMenu(menu) {
+  return menu.map((item) => ({
+    ...item,
+    ...(itemDetails[item.id] || {
+      description: "A GG counter pick the room keeps noticing.",
+      vouches: 0
+    }),
+    vouches: savedStats[item.id]?.vouches ?? itemDetails[item.id]?.vouches ?? 0
+  }));
 }
 
-function renderBookings(bookings) {
-  if (bookings.length === 0) {
-    upcomingBookings.innerHTML = `
-      <article class="timeline-item">
-        <strong>No upcoming bookings yet</strong>
-        <span>Both PS5 consoles are open for fresh reservations.</span>
-      </article>
-    `;
-    return;
-  }
-
-  upcomingBookings.innerHTML = bookings
-    .slice(0, 6)
-    .map((booking) => `
-      <article class="timeline-item">
-        <strong>${booking.consoleId === "ps5-1" ? "PS5 Console 1" : "PS5 Console 2"}</strong>
-        <span>${formatTime.format(new Date(booking.startTime))} - ${formatTime.format(new Date(booking.endTime))}</span>
-        <span>${booking.playerName} / ${booking.gameType === "fc26" ? "FC26" : "Regular"} / Rs ${booking.playPrice}</span>
-      </article>
-    `)
-    .join("");
+function saveMenuStats() {
+  savedStats = Object.fromEntries(
+    menuItems.map((item) => [
+      item.id,
+      {
+        vouches: item.vouches
+      }
+    ])
+  );
+  localStorage.setItem("gg-menu-stats", JSON.stringify(savedStats));
 }
 
-function renderMenu(menu) {
-  const menuMarkup = menu
-    .map((item) => `
-      <label class="check-item">
-        <input type="checkbox" value="${item.id}" />
-        <strong>${item.name}</strong>
-        <span>${item.category} / ${money(item.price)}</span>
-      </label>
-    `)
-    .join("");
-
-  bookingMenu.innerHTML = menuMarkup;
-  orderMenu.innerHTML = menu
-    .map((item) => `
-      <label class="menu-card">
-        <input name="items" type="checkbox" value="${item.id}" />
-        <strong>${item.name}</strong>
-        <span>${item.category} / ${money(item.price)}</span>
-      </label>
-    `)
-    .join("");
-}
-
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Something went wrong.");
   return data;
 }
 
-async function refreshLiveData() {
-  try {
-    const [availability, bookings] = await Promise.all([
-      fetchJson("/api/availability"),
-      fetchJson("/api/bookings")
-    ]);
-    renderAvailability(availability.consoles, availability.serverTime);
-    renderBookings(bookings.bookings);
-  } catch (error) {
-    consoleStatus.innerHTML = `<article class="console-card"><h3>Could not sync</h3><div class="console-meta">${error.message}</div></article>`;
+function totalOrdersToday() {
+  return menuItems.reduce((sum, item) => sum + item.vouches, 0);
+}
+
+function showScreen(name) {
+  Object.entries(screens).forEach(([screenName, screen]) => {
+    screen.classList.toggle("is-active", screenName === name);
+  });
+  document.querySelectorAll(".app-tabs button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.screen === name);
+  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function routeFromHash() {
+  const route = window.location.hash.replace("#", "").toLowerCase();
+  const screenName = route === "join" ? "profile" : route === "book" ? "booking" : route;
+  if (screens[screenName]) {
+    showScreen(screenName);
   }
 }
 
-function selectedValues(container) {
-  return [...container.querySelectorAll("input:checked")].map((input) => input.value);
+function persistProfile(nextProfile) {
+  profile = nextProfile;
+  localStorage.setItem("gg-community-profile", JSON.stringify(profile));
+  renderProfileState();
 }
 
-function setMessage(target, message, type) {
-  target.textContent = message;
-  target.className = `form-message ${type}`;
+function renderProfileState() {
+  const alias = currentAlias();
+  profileChip.textContent = profile ? alias.replace("Not Another ", "") : "Join";
+  aliasPreview.textContent = alias;
+  thoughtActions.hidden = !profile;
+  profilePrompt.hidden = Boolean(profile);
+
+  if (profile) {
+    profileForm.elements.phone.value = profile.phone;
+    profileForm.elements.displayName.value = profile.displayName || "";
+  }
 }
 
-bookingForm.addEventListener("submit", async (event) => {
+function renderMenu() {
+  const total = totalOrdersToday();
+  let previousSection = "";
+
+  communityMenu.innerHTML = menuItems
+    .map((item, index) => {
+      const section = item.category === "GG Bev" ? `GG Bev / ${item.subcategory || "Drinks"}` : "GG Snack";
+      const sectionMarkup =
+        section !== previousSection
+          ? `<div class="menu-section-break"><span>${section}</span><small>${section === "GG Snack" ? "Rs 60 each" : "Prices placeholder"}</small></div>`
+          : "";
+      const percent = total > 0 ? Math.max(6, Math.round((item.vouches / total) * 100)) : 0;
+      const isVouched = vouched.has(item.id);
+      previousSection = section;
+      return `
+        ${sectionMarkup}
+        <article class="vote-card ${isVouched ? "is-vouched" : ""}" data-item-id="${item.id}">
+          <span class="vote-card-top">
+            <span>
+              <small>#${index + 1} community pick / ${item.subcategory || item.category}</small>
+              <strong>${item.name}</strong>
+            </span>
+            <button class="vouch-mark" type="button" data-vouch="${item.id}">${isVouched ? "Vouched" : "Vouch"}</button>
+          </span>
+          <span class="vote-description">${item.description}</span>
+          <span class="vote-meter" aria-label="${item.vouches} vouches">
+            <span style="width: ${percent}%"></span>
+          </span>
+          <span class="vote-summary">
+            <span>${item.vouches} vouches</span>
+            <span>${money(item.price)}</span>
+          </span>
+        </article>
+      `;
+    })
+    .join("");
+
+  communityMenu.querySelectorAll("[data-vouch]").forEach((button) => {
+    button.addEventListener("click", () => vouchFor(button.dataset.vouch));
+  });
+}
+
+function renderThoughtItems() {
+  thoughtItems.innerHTML = menuItems
+    .map((item, index) => `
+      <label class="radio-item">
+        <input name="itemId" type="radio" value="${item.id}" ${index === 0 ? "checked" : ""} />
+        <span>
+          <strong>${item.name}</strong>
+          <small>${item.subcategory || item.category} / ${item.vouches} vouches</small>
+        </span>
+      </label>
+    `)
+    .join("");
+}
+
+function renderWallQuote() {
+  const thought = communityThoughts[communityThoughts.length - 1];
+  const item = menuItems.find((menuItem) => menuItem.id === thought.itemId);
+  wallQuote.textContent = `"${thought.text}" - ${thought.alias}${item ? ` on ${item.name}` : ""}`;
+}
+
+function vouchFor(itemId) {
+  if (!profile) {
+    showScreen("profile");
+    profileMessage.textContent = "Join Not Another Experience once, then your vouches belong to the room.";
+    profileMessage.className = "form-message";
+    return;
+  }
+
+  if (vouched.has(itemId)) return;
+  const item = menuItems.find((menuItem) => menuItem.id === itemId);
+  if (!item) return;
+
+  item.vouches += 1;
+  memberCount += 1;
+  vouched.add(itemId);
+  localStorage.setItem("gg-vouched-items", JSON.stringify([...vouched]));
+  localStorage.setItem("gg-founder-count", String(memberCount));
+  saveMenuStats();
+  renderMenu();
+  renderThoughtItems();
+}
+
+function submitThought(event) {
   event.preventDefault();
-  const form = new FormData(bookingForm);
-  const payload = {
-    playerName: form.get("playerName"),
-    phone: form.get("phone"),
-    consoleId: form.get("consoleId"),
-    gameType: form.get("gameType"),
-    startTime: form.get("startTime"),
-    durationMinutes: form.get("durationMinutes"),
-    snackIds: selectedValues(bookingMenu)
+  if (!profile) {
+    showScreen("profile");
+    profileMessage.textContent = "Join Not Another Experience so the wall knows whose trace this is.";
+    return;
+  }
+
+  const form = new FormData(thoughtForm);
+  const itemId = form.get("itemId");
+  const item = menuItems.find((menuItem) => menuItem.id === itemId);
+  const thought = String(form.get("thought") || "").trim();
+  const text = thought || `${item.name} got a quiet nod from ${currentAlias()}.`;
+
+  communityThoughts.push({ itemId, alias: currentAlias(), text });
+  memberCount += 1;
+  if (item) {
+    item.vouches += 1;
+  }
+
+  localStorage.setItem("gg-founder-count", String(memberCount));
+  saveMenuStats();
+  thanksCount.textContent = `${memberCount} community members today.`;
+  postedThought.textContent = `"${text}" - ${currentAlias()}`;
+  thoughtForm.reset();
+  renderMenu();
+  renderThoughtItems();
+  renderWallQuote();
+  showScreen("thanks");
+}
+
+async function submitProfile(event) {
+  event.preventDefault();
+  const form = new FormData(profileForm);
+  const phone = String(form.get("phone") || "").replace(/\D/g, "");
+  const displayName = String(form.get("displayName") || "").trim();
+
+  if (phone.length !== 10) {
+    profileMessage.textContent = "Use a valid 10 digit Indian phone number.";
+    profileMessage.className = "form-message error";
+    return;
+  }
+
+  if (!displayName) {
+    profileMessage.textContent = "Your Not Another name is required.";
+    profileMessage.className = "form-message error";
+    return;
+  }
+
+  const nextProfile = {
+    phone,
+    identity: displayName,
+    alias: makeAlias(displayName),
+    displayName
   };
 
   try {
-    const data = await fetchJson("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    setMessage(
-      bookingMessage,
-      `Confirmed. Play charge: Rs ${data.booking.playPrice}. Your slot ends at ${formatTime.format(new Date(data.booking.endTime))}.`,
-      "success"
-    );
-    bookingForm.reset();
-    setDefaultDateTime(bookingForm.elements.startTime);
-    updatePricePreview();
-    refreshLiveData();
+    const data = await postJson("/api/community-members", nextProfile);
+    persistProfile(data.member || nextProfile);
+    profileMessage.textContent = `${currentAlias()} has entered the room.`;
+    profileMessage.className = "form-message success";
+    window.location.href = "/philosophy.html";
   } catch (error) {
-    setMessage(bookingMessage, error.message, "error");
+    profileMessage.textContent = error.message;
+    profileMessage.className = "form-message error";
   }
-});
+}
 
-orderForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(orderForm);
-  const payload = {
-    customerName: form.get("customerName"),
-    phone: form.get("phone"),
-    pickupTime: form.get("pickupTime"),
-    items: selectedValues(orderMenu)
-  };
-
+async function loadMenu() {
   try {
-    await fetchJson("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    setMessage(orderMessage, "Pre-order received. The counter can prep it for your arrival.", "success");
-    orderForm.reset();
-    setDefaultDateTime(orderForm.elements.pickupTime);
+    const response = await fetch("/api/menu");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load menu.");
+    menuItems = enrichMenu(data.menu.length ? data.menu : fallbackMenu);
   } catch (error) {
-    setMessage(orderMessage, error.message, "error");
+    menuItems = enrichMenu(fallbackMenu);
   }
-});
+}
 
 async function boot() {
-  setDefaultDateTime(bookingForm.elements.startTime);
-  setDefaultDateTime(orderForm.elements.pickupTime);
-  bookingForm.elements.gameType.addEventListener("change", updatePricePreview);
-  bookingForm.elements.durationMinutes.addEventListener("change", updatePricePreview);
-  updatePricePreview();
-  const menu = await fetchJson("/api/menu");
-  renderMenu(menu.menu);
-  await refreshLiveData();
-  setInterval(refreshLiveData, 7000);
+  await loadMenu();
+  renderProfileState();
+  renderMenu();
+  renderThoughtItems();
+  renderWallQuote();
+
+  thoughtButton.addEventListener("click", () => showScreen("thought"));
+  thoughtForm.addEventListener("submit", submitThought);
+  profileForm.addEventListener("submit", submitProfile);
+  profileForm.elements.displayName.addEventListener("input", () => {
+    const displayName = profileForm.elements.displayName.value.trim() || "Regular";
+    aliasPreview.textContent = makeAlias(displayName);
+  });
+  document.querySelectorAll("[data-screen]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      showScreen(button.dataset.screen);
+    });
+  });
+  window.addEventListener("hashchange", routeFromHash);
+  routeFromHash();
 }
 
 boot();

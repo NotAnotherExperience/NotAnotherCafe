@@ -9,48 +9,145 @@
     {
       "id": "ps5-2",
       "name": "PS5 Console 2",
-      "station": "White Bay",
+      "station": "Yellow Bay",
       "walkInStatus": "available"
     }
   ],
-  "bookings": [],
-  "orders": [],
+  "bookings": [
+    {
+      "id": "347d867e-3ec7-4f5b-a5b7-3a7af715a1bc",
+      "consoleId": "ps5-1",
+      "gameType": "fc26",
+      "gameLabel": "FC26 premium match",
+      "playerName": "xss",
+      "phone": "3212344321",
+      "startTime": "2026-05-07T10:15:00.000Z",
+      "endTime": "2026-05-07T10:32:00.000Z",
+      "durationMinutes": 17,
+      "playPrice": 70,
+      "snackIds": [
+        "cheese-bites"
+      ],
+      "status": "confirmed",
+      "createdAt": "2026-05-07T09:39:54.947Z"
+    }
+  ],
+  "communityMembers": [
+    {
+      "id": "e157e13c-afd9-4e84-a5b6-51ee81a5fb05",
+      "phone": "7001916300",
+      "identity": "Chief Vibes Officer",
+      "alias": "Not Another Chief Vibes Officer",
+      "displayName": "Chief Vibes Officer",
+      "joinedAt": "2026-05-08T21:02:35.993Z",
+      "updatedAt": "2026-05-08T21:27:16.564Z"
+    }
+  ],
   "menu": [
     {
-      "id": "gg-fries",
-      "category": "GG Snacks",
-      "name": "GG Loaded Fries",
-      "price": 189
+      "id": "gg-salad-blue",
+      "category": "GG Snack",
+      "subcategory": "GG Snack",
+      "name": "Blue Lays",
+      "price": 60
     },
     {
-      "id": "cheese-bites",
-      "category": "GG Snacks",
-      "name": "Crispy Cheese Bites",
-      "price": 169
+      "id": "gg-salad-orange",
+      "category": "GG Snack",
+      "subcategory": "GG Snack",
+      "name": "Orange Lays",
+      "price": 60
     },
     {
-      "id": "peri-popcorn",
-      "category": "GG Snacks",
-      "name": "Peri Peri Popcorn",
-      "price": 139
+      "id": "gg-salad-green",
+      "category": "GG Snack",
+      "subcategory": "GG Snack",
+      "name": "Green Lays",
+      "price": 60
     },
     {
-      "id": "red-fizz",
+      "id": "gg-salad-red",
+      "category": "GG Snack",
+      "subcategory": "GG Snack",
+      "name": "Red Lays",
+      "price": 60
+    },
+    {
+      "id": "gg-salad-dark-green",
+      "category": "GG Snack",
+      "subcategory": "GG Snack",
+      "name": "Dark Green Lays",
+      "price": 60
+    },
+    {
+      "id": "watermelon-crush",
       "category": "GG Bev",
-      "name": "Red Strip Fizz",
-      "price": 129
+      "subcategory": "Iced",
+      "name": "Watermelon Crush",
+      "price": 0
     },
     {
-      "id": "cold-coffee",
+      "id": "strawberry-crush",
       "category": "GG Bev",
-      "name": "GG Cold Coffee",
-      "price": 149
+      "subcategory": "Iced",
+      "name": "Strawberry Crush",
+      "price": 0
     },
     {
-      "id": "white-soda",
+      "id": "green-apple-crush",
       "category": "GG Bev",
-      "name": "White Neon Soda",
-      "price": 119
+      "subcategory": "Iced",
+      "name": "Green Apple Crush",
+      "price": 0
+    },
+    {
+      "id": "peach-crush",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Peach Crush",
+      "price": 0
+    },
+    {
+      "id": "peach-ice-tea",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Peach Ice Tea",
+      "price": 0
+    },
+    {
+      "id": "watermelon-ice-tea",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Watermelon Ice Tea",
+      "price": 0
+    },
+    {
+      "id": "strawberry-ice-tea",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Strawberry Ice Tea",
+      "price": 0
+    },
+    {
+      "id": "green-apple-ice-tea",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Green Apple Ice Tea",
+      "price": 0
+    },
+    {
+      "id": "green-tea",
+      "category": "GG Bev",
+      "subcategory": "Hot",
+      "name": "Green Tea",
+      "price": 0
+    },
+    {
+      "id": "hot-peach-tea",
+      "category": "GG Bev",
+      "subcategory": "Hot",
+      "name": "Hot Peach Tea",
+      "price": 0
     }
   ]
 }
