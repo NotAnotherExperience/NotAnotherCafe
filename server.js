@@ -570,4 +570,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = { handleRequest };
+module.exports = handleRequest;
+module.exports.handleRequest = handleRequest;
