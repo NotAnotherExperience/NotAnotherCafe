@@ -36,8 +36,22 @@ function escapeHtml(value) {
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
+  if (response.status === 401) {
+    window.location.href = "/admin-login.html";
+    throw new Error("Session expired. Login again.");
+  }
   if (!response.ok) throw new Error(data.error || "Something went wrong.");
   return data;
+}
+
+async function verifyAdminSession() {
+  try {
+    await fetchJson("/api/admin/me");
+  } catch (error) {
+    if (!String(error.message).includes("Session expired")) {
+      window.location.href = "/admin-login.html";
+    }
+  }
 }
 
 function resetForm() {
@@ -210,5 +224,7 @@ logoutButton.addEventListener("click", async () => {
   await fetch("/api/admin/logout", { method: "POST" });
   window.location.href = "/admin-login.html";
 });
+verifyAdminSession();
+setInterval(verifyAdminSession, 60 * 1000);
 loadMenu();
 loadSpecial();

@@ -29,6 +29,8 @@ loadEnvFile();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "gg-admin";
 const SESSION_SECRET = process.env.SESSION_SECRET || "not-a-cafe-local-secret";
+const ADMIN_SESSION_MINUTES = Math.max(1, Number(process.env.ADMIN_SESSION_MINUTES || 60));
+const ADMIN_SESSION_MS = ADMIN_SESSION_MINUTES * 60 * 1000;
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = process.env.VERCEL ? path.join(os.tmpdir(), "gg-db.json") : path.join(DATA_DIR, "db.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -151,7 +153,7 @@ function isAdmin(req) {
   return (
     payload.startsWith("admin:") &&
     Number.isFinite(payloadAge) &&
-    payloadAge < 12 * 60 * 60 * 1000 &&
+    payloadAge < ADMIN_SESSION_MS &&
     crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
   );
 }
@@ -315,9 +317,9 @@ async function handleApi(req, res, pathname) {
 
       res.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
-        "Set-Cookie": `gg_admin=${encodeURIComponent(createSessionCookie())}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`
+        "Set-Cookie": `gg_admin=${encodeURIComponent(createSessionCookie())}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ADMIN_SESSION_MINUTES * 60}`
       });
-      res.end(JSON.stringify({ ok: true }));
+      res.end(JSON.stringify({ ok: true, expiresInMinutes: ADMIN_SESSION_MINUTES }));
     } catch (error) {
       sendJson(res, 400, { error: error.message });
     }
