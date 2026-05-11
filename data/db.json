@@ -40,9 +40,17 @@
       "alias": "Not Another Chief Vibes Officer",
       "displayName": "Chief Vibes Officer",
       "joinedAt": "2026-05-08T21:02:35.993Z",
-      "updatedAt": "2026-05-08T21:27:16.564Z"
+      "updatedAt": "2026-05-11T09:26:41.169Z"
     }
   ],
+  "specialToday": {
+    "id": "peach-ass-coke",
+    "category": "GG Bev",
+    "name": "Peach Ass Coke",
+    "price": 80,
+    "note": "GG Bev provided by the bois in the community",
+    "updatedAt": "2026-05-11T09:33:22.141Z"
+  },
   "menu": [
     {
       "id": "gg-salad-blue",

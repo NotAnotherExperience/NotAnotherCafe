@@ -58,6 +58,10 @@
             </select>
           </label>
           <label>
+            Section
+            <input name="subcategory" type="text" placeholder="Example: Iced, Hot, GG Snack" />
+          </label>
+          <label>
             Price
             <input name="price" type="number" min="0" step="1" placeholder="Price in Rs" required />
           </label>
@@ -74,6 +78,40 @@
             <h2>Current items</h2>
           </div>
           <div id="adminMenuList" class="admin-menu-list"></div>
+        </section>
+      </section>
+
+      <section class="admin-grid special-admin-grid" aria-label="Special today controls">
+        <form id="specialForm" class="form-surface admin-form">
+          <div>
+            <p class="eyebrow">Special today</p>
+            <h2>Special GG Bev</h2>
+          </div>
+          <label>
+            Drink name
+            <input name="name" type="text" placeholder="Example: Watermelon Crush" required />
+          </label>
+          <label>
+            Price
+            <input name="price" type="number" min="0" step="1" placeholder="Price in Rs" required />
+          </label>
+          <label>
+            Short note
+            <input name="note" type="text" maxlength="90" placeholder="Example: Cold drop for today's room" />
+          </label>
+          <div class="admin-actions">
+            <button class="primary-action" type="submit">Publish special</button>
+            <button id="clearSpecialButton" class="secondary-action" type="button">Clear special</button>
+          </div>
+          <p id="specialMessage" class="form-message" role="status"></p>
+        </form>
+
+        <section class="form-surface special-preview-panel" aria-label="Current special today">
+          <div>
+            <p class="eyebrow">Public artifact</p>
+            <h2>Current special</h2>
+          </div>
+          <div id="specialPreview" class="special-preview-empty">No Special GG Bev today.</div>
         </section>
       </section>
     </main>

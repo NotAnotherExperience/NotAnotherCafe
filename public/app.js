@@ -7,6 +7,7 @@ const screens = {
 };
 
 const communityMenu = document.querySelector("#communityMenu");
+const specialToday = document.querySelector("#specialToday");
 const wallQuote = document.querySelector("#wallQuote");
 const thoughtItems = document.querySelector("#thoughtItems");
 const thoughtForm = document.querySelector("#thoughtForm");
@@ -115,6 +116,7 @@ const communityThoughts = [
 ];
 
 let menuItems = [];
+let specialTodayItem = null;
 let vouched = new Set(JSON.parse(localStorage.getItem("gg-vouched-items") || "[]"));
 let memberCount = Number(localStorage.getItem("gg-founder-count") || 47);
 let profile = JSON.parse(localStorage.getItem("gg-community-profile") || "null");
@@ -123,6 +125,15 @@ let savedStats = JSON.parse(localStorage.getItem("gg-menu-stats") || "{}");
 function money(value) {
   if (Number(value) === 0) return "Price TBD";
   return `Rs ${value}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function makeAlias(identity = "Regular") {
@@ -199,13 +210,41 @@ function renderProfileState() {
   const alias = currentAlias();
   profileChip.textContent = profile ? alias.replace("Not Another ", "") : "Join";
   aliasPreview.textContent = alias;
-  thoughtActions.hidden = !profile;
   profilePrompt.hidden = Boolean(profile);
+  renderMenuActions();
 
   if (profile) {
     profileForm.elements.phone.value = profile.phone;
     profileForm.elements.displayName.value = profile.displayName || "";
   }
+}
+
+function renderMenuActions() {
+  thoughtActions.hidden = !profile;
+}
+
+function renderSpecialToday() {
+  if (!specialToday) return;
+  if (!specialTodayItem) {
+    specialToday.hidden = true;
+    specialToday.innerHTML = "";
+    renderMenuActions();
+    return;
+  }
+
+  specialToday.hidden = false;
+  specialToday.innerHTML = `
+    <button class="special-artifact-button" type="button" aria-label="Special GG Bev today">
+      Special Today
+    </button>
+    <div>
+      <span>Special GG Bev Today</span>
+      <strong>${escapeHtml(specialTodayItem.name)}</strong>
+      ${specialTodayItem.note ? `<p>${escapeHtml(specialTodayItem.note)}</p>` : ""}
+    </div>
+    <b>${money(specialTodayItem.price)}</b>
+  `;
+  renderMenuActions();
 }
 
 function renderMenu() {
@@ -230,7 +269,9 @@ function renderMenu() {
               <small>#${index + 1} community pick / ${item.subcategory || item.category}</small>
               <strong>${item.name}</strong>
             </span>
-            <button class="vouch-mark" type="button" data-vouch="${item.id}">${isVouched ? "Vouched" : "Vouch"}</button>
+            <button class="vouch-mark" type="button" data-vouch="${item.id}" aria-pressed="${isVouched}">
+              ${isVouched ? "Unvouch" : "Vouch"}
+            </button>
           </span>
           <span class="vote-description">${item.description}</span>
           <span class="vote-meter" aria-label="${item.vouches} vouches">
@@ -278,15 +319,18 @@ function vouchFor(itemId) {
     return;
   }
 
-  if (vouched.has(itemId)) return;
   const item = menuItems.find((menuItem) => menuItem.id === itemId);
   if (!item) return;
 
-  item.vouches += 1;
-  memberCount += 1;
-  vouched.add(itemId);
+  if (vouched.has(itemId)) {
+    item.vouches = Math.max(0, item.vouches - 1);
+    vouched.delete(itemId);
+  } else {
+    item.vouches += 1;
+    vouched.add(itemId);
+  }
+
   localStorage.setItem("gg-vouched-items", JSON.stringify([...vouched]));
-  localStorage.setItem("gg-founder-count", String(memberCount));
   saveMenuStats();
   renderMenu();
   renderThoughtItems();
@@ -362,18 +406,25 @@ async function submitProfile(event) {
 
 async function loadMenu() {
   try {
-    const response = await fetch("/api/menu");
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load menu.");
+    const [menuResponse, specialResponse] = await Promise.all([
+      fetch("/api/menu"),
+      fetch("/api/special-today")
+    ]);
+    const data = await menuResponse.json();
+    const specialData = await specialResponse.json();
+    if (!menuResponse.ok) throw new Error(data.error || "Could not load menu.");
     menuItems = enrichMenu(data.menu.length ? data.menu : fallbackMenu);
+    specialTodayItem = specialResponse.ok ? specialData.specialToday : null;
   } catch (error) {
     menuItems = enrichMenu(fallbackMenu);
+    specialTodayItem = null;
   }
 }
 
 async function boot() {
   await loadMenu();
   renderProfileState();
+  renderSpecialToday();
   renderMenu();
   renderThoughtItems();
   renderWallQuote();

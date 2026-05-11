@@ -4,6 +4,28 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
+function loadEnvFile() {
+  const envPath = path.join(__dirname, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) return;
+
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  });
+}
+
+loadEnvFile();
+
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "gg-admin";
 const SESSION_SECRET = process.env.SESSION_SECRET || "not-a-cafe-local-secret";
@@ -18,6 +40,7 @@ const DEFAULT_DB = {
   ],
   bookings: [],
   communityMembers: [],
+  specialToday: null,
   menu: [
     { id: "gg-salad-blue", category: "GG Snack", subcategory: "GG Snack", name: "Blue Lays", price: 60 },
     { id: "gg-salad-orange", category: "GG Snack", subcategory: "GG Snack", name: "Orange Lays", price: 60 },
@@ -64,11 +87,18 @@ function ensureDb() {
 
 function readDb() {
   ensureDb();
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+  return normalizeDb(JSON.parse(fs.readFileSync(DB_PATH, "utf8")));
 }
 
 function writeDb(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+}
+
+function normalizeDb(db) {
+  if (!Array.isArray(db.communityMembers)) db.communityMembers = [];
+  if (!Array.isArray(db.menu)) db.menu = [...DEFAULT_DB.menu];
+  if (!Object.prototype.hasOwnProperty.call(db, "specialToday")) db.specialToday = null;
+  return db;
 }
 
 function slugify(value) {
@@ -318,6 +348,11 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/special-today") {
+    sendJson(res, 200, { specialToday: db.specialToday || null });
+    return;
+  }
+
   if (req.method === "POST" && pathname === "/api/community-members") {
     try {
       const body = await readBody(req);
@@ -369,6 +404,7 @@ async function handleApi(req, res, pathname) {
       const body = await readBody(req);
       const name = String(body.name || "").trim();
       const category = String(body.category || "").trim();
+      const subcategory = String(body.subcategory || "").trim();
       const price = Number(body.price);
 
       if (!name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
@@ -384,7 +420,7 @@ async function handleApi(req, res, pathname) {
         suffix += 1;
       }
 
-      const item = { id, category, name, price: Math.round(price) };
+      const item = { id, category, subcategory: subcategory || category, name, price: Math.round(price) };
       db.menu.push(item);
       writeDb(db);
       sendJson(res, 201, { item });
@@ -402,6 +438,7 @@ async function handleApi(req, res, pathname) {
       const item = db.menu.find((menuItem) => menuItem.id === itemId);
       const name = String(body.name || "").trim();
       const category = String(body.category || "").trim();
+      const subcategory = String(body.subcategory || "").trim();
       const price = Number(body.price);
 
       if (!item || !name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
@@ -411,6 +448,7 @@ async function handleApi(req, res, pathname) {
 
       item.name = name;
       item.category = category;
+      item.subcategory = subcategory || category;
       item.price = Math.round(price);
       writeDb(db);
       sendJson(res, 200, { item });
@@ -431,6 +469,43 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
+    writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "PUT" && pathname === "/api/special-today") {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const body = await readBody(req);
+      const name = String(body.name || "").trim();
+      const price = Number(body.price);
+      const note = String(body.note || "").trim().slice(0, 90);
+
+      if (!name || !Number.isFinite(price) || price < 0) {
+        sendJson(res, 400, { error: "Special today needs a drink name and a valid price." });
+        return;
+      }
+
+      db.specialToday = {
+        id: slugify(name) || "special-gg-bev",
+        category: "GG Bev",
+        name,
+        price: Math.round(price),
+        note,
+        updatedAt: new Date().toISOString()
+      };
+      writeDb(db);
+      sendJson(res, 200, { specialToday: db.specialToday });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "DELETE" && pathname === "/api/special-today") {
+    if (!requireAdmin(req, res)) return;
+    db.specialToday = null;
     writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
