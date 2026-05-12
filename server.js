@@ -42,6 +42,7 @@ const DEFAULT_DB = {
   ],
   bookings: [],
   communityMembers: [],
+  posSales: [],
   specialToday: null,
   menu: [
     { id: "gg-salad-blue", category: "GG Snack", subcategory: "GG Snack", name: "Blue Lays", price: 60 },
@@ -98,6 +99,7 @@ function writeDb(db) {
 
 function normalizeDb(db) {
   if (!Array.isArray(db.communityMembers)) db.communityMembers = [];
+  if (!Array.isArray(db.posSales)) db.posSales = [];
   if (!Array.isArray(db.menu)) db.menu = [...DEFAULT_DB.menu];
   if (!Object.prototype.hasOwnProperty.call(db, "specialToday")) db.specialToday = null;
   return db;
@@ -112,7 +114,12 @@ function slugify(value) {
 }
 
 function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0"
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -138,6 +145,11 @@ function createSessionCookie() {
   return `${payload}.${signSession(payload)}`;
 }
 
+function createMemberCookie(phone) {
+  const payload = `member:${phone}:${Date.now()}`;
+  return `${payload}.${signSession(payload)}`;
+}
+
 function isAdmin(req) {
   const session = parseCookies(req).gg_admin;
   if (!session) return false;
@@ -156,6 +168,26 @@ function isAdmin(req) {
     payloadAge < ADMIN_SESSION_MS &&
     crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
   );
+}
+
+function memberPhoneFromCookie(req) {
+  const session = parseCookies(req).gg_member;
+  if (!session) return null;
+
+  const splitAt = session.lastIndexOf(".");
+  if (splitAt === -1) return null;
+
+  const payload = session.slice(0, splitAt);
+  const signature = session.slice(splitAt + 1);
+  const expected = signSession(payload);
+  const [, phone, timestamp] = payload.split(":");
+  const payloadAge = Date.now() - Number(timestamp);
+
+  if (!payload.startsWith("member:") || normalizePhone(phone).length !== 10) return null;
+  if (!Number.isFinite(payloadAge) || payloadAge > 180 * 24 * 60 * 60 * 1000) return null;
+  if (signature.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  return normalizePhone(phone);
 }
 
 function sendRedirect(res, location) {
@@ -355,6 +387,23 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/community-members/me") {
+    const phone = memberPhoneFromCookie(req);
+    if (!phone) {
+      sendJson(res, 401, { member: null });
+      return;
+    }
+
+    const member = db.communityMembers.find((item) => item.phone === phone);
+    if (!member) {
+      sendJson(res, 404, { member: null });
+      return;
+    }
+
+    sendJson(res, 200, { member });
+    return;
+  }
+
   if (req.method === "POST" && pathname === "/api/community-members") {
     try {
       const body = await readBody(req);
@@ -378,7 +427,14 @@ async function handleApi(req, res, pathname) {
         existing.displayName = displayName;
         existing.updatedAt = timestamp;
         writeDb(db);
-        sendJson(res, 200, { member: existing });
+        res.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+          "Set-Cookie": `gg_member=${encodeURIComponent(createMemberCookie(phone))}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${180 * 24 * 60 * 60}`
+        });
+        res.end(JSON.stringify({ member: existing }));
         return;
       }
 
@@ -393,7 +449,14 @@ async function handleApi(req, res, pathname) {
       };
       db.communityMembers.push(member);
       writeDb(db);
-      sendJson(res, 201, { member });
+      res.writeHead(201, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Set-Cookie": `gg_member=${encodeURIComponent(createMemberCookie(phone))}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${180 * 24 * 60 * 60}`
+      });
+      res.end(JSON.stringify({ member }));
     } catch (error) {
       sendJson(res, 400, { error: error.message });
     }
@@ -513,6 +576,61 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/pos-sales") {
+    if (!requireAdmin(req, res)) return;
+    const sales = [...db.posSales].sort((a, b) => parseDate(b.soldAt) - parseDate(a.soldAt));
+    sendJson(res, 200, { sales });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/pos-sales") {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const body = await readBody(req);
+      const itemId = String(body.itemId || "").trim();
+      const quantity = Math.max(1, Math.min(99, Math.round(Number(body.quantity) || 1)));
+      const paymentMode = String(body.paymentMode || "UPI").trim().slice(0, 24) || "UPI";
+      const note = String(body.note || "").trim().slice(0, 90);
+      const menuItem = db.menu.find((item) => item.id === itemId);
+      const isSpecial = itemId === "special-today" && db.specialToday;
+      const source = isSpecial ? db.specialToday : menuItem;
+
+      if (!source) {
+        sendJson(res, 400, { error: "Choose an item from the POS menu." });
+        return;
+      }
+
+      const unitPrice = Math.max(0, Math.round(Number(source.price) || 0));
+      const sale = {
+        id: crypto.randomUUID(),
+        itemId,
+        itemName: source.name,
+        category: source.category || "GG Bev",
+        quantity,
+        unitPrice,
+        total: unitPrice * quantity,
+        paymentMode,
+        note,
+        soldAt: new Date().toISOString()
+      };
+
+      db.posSales.push(sale);
+      writeDb(db);
+      sendJson(res, 201, { sale });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "DELETE" && pathname === "/api/pos-sales") {
+    if (!requireAdmin(req, res)) return;
+    db.posSales = [];
+    writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/api/bookings") {
     const upcoming = db.bookings
       .filter((booking) => booking.status === "confirmed" && parseDate(booking.endTime) >= new Date())
@@ -612,7 +730,13 @@ function serveStatic(req, res, pathname) {
     }
 
     const extension = path.extname(filePath);
-    res.writeHead(200, { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" });
+    const headers = { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" };
+    if ([".html", ".js", ".css"].includes(extension)) {
+      headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate";
+      headers["Pragma"] = "no-cache";
+      headers["Expires"] = "0";
+    }
+    res.writeHead(200, headers);
     res.end(content);
   });
 }

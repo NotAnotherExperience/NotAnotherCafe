@@ -114,6 +114,52 @@
           <div id="specialPreview" class="special-preview-empty">No Special GG Bev today.</div>
         </section>
       </section>
+
+      <section class="admin-grid pos-admin-grid" aria-label="POS sales tool">
+        <form id="posForm" class="form-surface admin-form">
+          <div>
+            <p class="eyebrow">POS</p>
+            <h2>Counter sale</h2>
+          </div>
+          <label>
+            Item
+            <select name="itemId" id="posItemSelect" required></select>
+          </label>
+          <label>
+            Quantity
+            <input name="quantity" type="number" min="1" max="99" step="1" value="1" required />
+          </label>
+          <label>
+            Payment
+            <select name="paymentMode" required>
+              <option value="UPI">UPI</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label>
+            Note
+            <input name="note" type="text" maxlength="90" placeholder="Optional counter note" />
+          </label>
+          <div class="pos-total-preview" id="posTotalPreview">Total: Rs 0</div>
+          <button class="primary-action" type="submit">Add sale</button>
+          <p id="posMessage" class="form-message" role="status"></p>
+        </form>
+
+        <section class="form-surface pos-log-panel" aria-label="POS sales log">
+          <div>
+            <p class="eyebrow">Sheet update</p>
+            <h2>Sales log</h2>
+          </div>
+          <div class="admin-actions">
+            <button id="downloadPosCsv" class="secondary-action" type="button">Download CSV</button>
+            <button id="clearPosSales" class="secondary-action" type="button">Clear log</button>
+          </div>
+          <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1POBAQQlbQM1hsI_ZJKEavnivdHhsQ24EcZGeM0dRpeI/edit?gid=923436773#gid=923436773" target="_blank" rel="noreferrer">Open Google Sheet</a>
+          <div id="posSalesList" class="pos-sales-list"></div>
+        </section>
+      </section>
     </main>
 
     <script src="/admin.js"></script>

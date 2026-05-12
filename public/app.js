@@ -178,6 +178,19 @@ async function postJson(url, payload) {
   return data;
 }
 
+async function restoreProfileFromServer() {
+  if (profile) return;
+  try {
+    const response = await fetch("/api/community-members/me", { cache: "no-store" });
+    const data = await response.json();
+    if (response.ok && data.member) {
+      persistProfile(data.member);
+    }
+  } catch {
+    // local-only guests can continue without a restored profile
+  }
+}
+
 function totalOrdersToday() {
   return menuItems.reduce((sum, item) => sum + item.vouches, 0);
 }
@@ -407,8 +420,8 @@ async function submitProfile(event) {
 async function loadMenu() {
   try {
     const [menuResponse, specialResponse] = await Promise.all([
-      fetch("/api/menu"),
-      fetch("/api/special-today")
+      fetch("/api/menu", { cache: "no-store" }),
+      fetch("/api/special-today", { cache: "no-store" })
     ]);
     const data = await menuResponse.json();
     const specialData = await specialResponse.json();
@@ -422,6 +435,7 @@ async function loadMenu() {
 }
 
 async function boot() {
+  await restoreProfileFromServer();
   await loadMenu();
   renderProfileState();
   renderSpecialToday();

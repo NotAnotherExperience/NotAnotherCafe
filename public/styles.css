@@ -1041,6 +1041,64 @@
   font-size: 1.05rem;
 }
 
+.pos-admin-grid {
+  margin-top: 1.2rem;
+}
+
+.pos-total-preview {
+  border: 1px solid rgba(70, 227, 156, 0.26);
+  border-radius: 8px;
+  padding: 0.85rem;
+  background: rgba(70, 227, 156, 0.08);
+  color: var(--ok);
+  font-family: Anton, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.sheet-link {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 212, 59, 0.28);
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  background: rgba(255, 212, 59, 0.08);
+  color: var(--yellow);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.pos-sales-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pos-sales-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(70, 227, 156, 0.28);
+  border-radius: 8px;
+  padding: 0.95rem;
+  background: rgba(70, 227, 156, 0.08);
+}
+
+.pos-sales-total strong,
+.pos-sale-total {
+  color: var(--ok);
+  font-weight: 950;
+}
+
+.pos-sales-total span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
 /* Immersive Not Another Experience philosophy page */
 .nae-experience {
   --nae-bg: #050505;
