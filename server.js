@@ -34,6 +34,8 @@ const ADMIN_SESSION_MS = ADMIN_SESSION_MINUTES * 60 * 1000;
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = process.env.VERCEL ? path.join(os.tmpdir(), "gg-db.json") : path.join(DATA_DIR, "db.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
+const USE_REDIS = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+const REDIS_KEY = process.env.UPSTASH_REDIS_KEY || "gg-db";
 
 const DEFAULT_DB = {
   consoles: [
@@ -80,6 +82,7 @@ const MIME_TYPES = {
 };
 
 function ensureDb() {
+  if (USE_REDIS) return;
   const dbDir = path.dirname(DB_PATH);
   if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
@@ -90,12 +93,48 @@ function ensureDb() {
   }
 }
 
-function readDb() {
+function bundledSeed() {
+  const seedPath = path.join(DATA_DIR, "db.json");
+  if (fs.existsSync(seedPath)) return JSON.parse(fs.readFileSync(seedPath, "utf8"));
+  return JSON.parse(JSON.stringify(DEFAULT_DB));
+}
+
+async function redisGet() {
+  const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/${encodeURIComponent(REDIS_KEY)}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` },
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error(`Upstash GET failed (${res.status})`);
+  const data = await res.json();
+  return data.result;
+}
+
+async function redisSet(value) {
+  const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/${encodeURIComponent(REDIS_KEY)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` },
+    body: value
+  });
+  if (!res.ok) throw new Error(`Upstash SET failed (${res.status})`);
+}
+
+async function readDb() {
+  if (USE_REDIS) {
+    const raw = await redisGet();
+    if (raw) return normalizeDb(JSON.parse(raw));
+    const seed = bundledSeed();
+    await redisSet(JSON.stringify(seed));
+    return normalizeDb(seed);
+  }
   ensureDb();
   return normalizeDb(JSON.parse(fs.readFileSync(DB_PATH, "utf8")));
 }
 
-function writeDb(db) {
+async function writeDb(db) {
+  if (USE_REDIS) {
+    await redisSet(JSON.stringify(db));
+    return;
+  }
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
@@ -341,7 +380,7 @@ function normalizePhone(value) {
 }
 
 async function handleApi(req, res, pathname) {
-  const db = readDb();
+  const db = await readDb();
 
   if (req.method === "POST" && pathname === "/api/admin/login") {
     try {
@@ -439,7 +478,7 @@ async function handleApi(req, res, pathname) {
         existing.alias = alias;
         existing.displayName = displayName;
         existing.updatedAt = timestamp;
-        writeDb(db);
+        await writeDb(db);
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -461,7 +500,7 @@ async function handleApi(req, res, pathname) {
         updatedAt: timestamp
       };
       db.communityMembers.push(member);
-      writeDb(db);
+      await writeDb(db);
       res.writeHead(201, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -501,7 +540,7 @@ async function handleApi(req, res, pathname) {
 
       const item = { id, category, subcategory: subcategory || category, name, price: Math.round(price), description };
       db.menu.push(item);
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 201, { item });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -531,7 +570,7 @@ async function handleApi(req, res, pathname) {
       item.subcategory = subcategory || category;
       item.price = Math.round(price);
       item.description = description;
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 200, { item });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -550,7 +589,7 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -576,7 +615,7 @@ async function handleApi(req, res, pathname) {
         note,
         updatedAt: new Date().toISOString()
       };
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 200, { specialToday: db.specialToday });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -587,7 +626,7 @@ async function handleApi(req, res, pathname) {
   if (req.method === "DELETE" && pathname === "/api/special-today") {
     if (!requireAdmin(req, res)) return;
     db.specialToday = null;
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -631,7 +670,7 @@ async function handleApi(req, res, pathname) {
       };
 
       db.posSales.push(sale);
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 201, { sale });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -648,7 +687,7 @@ async function handleApi(req, res, pathname) {
       sendJson(res, 404, { error: "POS sale not found." });
       return;
     }
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -656,7 +695,7 @@ async function handleApi(req, res, pathname) {
   if (req.method === "DELETE" && pathname === "/api/pos-sales") {
     if (!requireAdmin(req, res)) return;
     db.posSales = [];
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -692,7 +731,7 @@ async function handleApi(req, res, pathname) {
       };
 
       db.expenses.push(expense);
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 201, { expense });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -709,7 +748,7 @@ async function handleApi(req, res, pathname) {
       sendJson(res, 404, { error: "Expense not found." });
       return;
     }
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -742,15 +781,35 @@ async function handleApi(req, res, pathname) {
         return;
       }
 
-      const activeInStation = db.gamingSessions.some((session) => (
-        session.station === station &&
-        session.status === "running" &&
-        session.endsAt &&
-        parseDate(session.endsAt) > new Date()
+      const now = new Date();
+      const openFifaTab = db.gamingSessions.find((entry) => (
+        entry.station === station &&
+        entry.status === "running" &&
+        !entry.endsAt &&
+        entry.sessionType === "fifa"
+      ));
+      const runningOnStation = db.gamingSessions.find((entry) => (
+        entry.station === station &&
+        entry.status === "running" &&
+        (!entry.endsAt || parseDate(entry.endsAt) > now)
       ));
 
-      if (plan.timed && activeInStation) {
-        sendJson(res, 409, { error: `${station} already has a running timed session.` });
+      if (sessionType === "fifa" && openFifaTab) {
+        if (openFifaTab.customerName !== customerName) {
+          sendJson(res, 409, { error: `${station} already has an open FC26 tab for ${openFifaTab.customerName}. Close it before starting a new one.` });
+          return;
+        }
+        openFifaTab.gameCount = Number(openFifaTab.gameCount || 1) + 1;
+        openFifaTab.total = Number(openFifaTab.total || 0) + plan.total;
+        if (note) openFifaTab.note = note;
+        if (paymentMode) openFifaTab.paymentMode = paymentMode;
+        await writeDb(db);
+        sendJson(res, 200, { session: openFifaTab });
+        return;
+      }
+
+      if (runningOnStation) {
+        sendJson(res, 409, { error: `${station} is busy with an active session.` });
         return;
       }
 
@@ -765,13 +824,14 @@ async function handleApi(req, res, pathname) {
         total: plan.total,
         paymentMode,
         note,
-        status: plan.timed ? "running" : "logged",
+        status: "running",
         startedAt: startedAt.toISOString(),
         endsAt: plan.timed ? new Date(startedAt.getTime() + plan.durationMinutes * 60 * 1000).toISOString() : null
       };
+      if (sessionType === "fifa") session.gameCount = 1;
 
       db.gamingSessions.push(session);
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 201, { session });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -789,6 +849,19 @@ async function handleApi(req, res, pathname) {
     }
     try {
       const body = await readBody(req);
+
+      if (body.addGame) {
+        if (session.status !== "running" || session.endsAt || session.sessionType !== "fifa") {
+          sendJson(res, 400, { error: "Only open FC26 tabs can add games." });
+          return;
+        }
+        session.gameCount = Number(session.gameCount || 1) + 1;
+        session.total = Number(session.total || 0) + 70;
+        await writeDb(db);
+        sendJson(res, 200, { session });
+        return;
+      }
+
       const extendTypes = {
         "30-min": { minutes: 30, amount: 100 },
         "60-min": { minutes: 60, amount: 180 },
@@ -805,13 +878,13 @@ async function handleApi(req, res, pathname) {
         session.endsAt = new Date(base.getTime() + extend.minutes * 60 * 1000).toISOString();
         session.total = Number(session.total || 0) + extend.amount;
         session.durationMinutes = Number(session.durationMinutes || 0) + extend.minutes;
-        writeDb(db);
+        await writeDb(db);
         sendJson(res, 200, { session });
         return;
       }
       session.status = "complete";
       session.completedAt = new Date().toISOString();
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 200, { session });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -828,7 +901,7 @@ async function handleApi(req, res, pathname) {
       sendJson(res, 404, { error: "Gaming session not found." });
       return;
     }
-    writeDb(db);
+    await writeDb(db);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -869,7 +942,7 @@ async function handleApi(req, res, pathname) {
       };
 
       db.bookings.push(booking);
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 201, { booking: publicBooking(booking) });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -891,7 +964,7 @@ async function handleApi(req, res, pathname) {
       }
 
       console.walkInStatus = body.walkInStatus;
-      writeDb(db);
+      await writeDb(db);
       sendJson(res, 200, { console });
     } catch (error) {
       sendJson(res, 400, { error: error.message });

@@ -355,9 +355,16 @@ function activeSessionFor(station) {
   return currentGamingSessions.find((session) => (
     session.station === station &&
     session.status === "running" &&
-    session.endsAt &&
-    sessionRemaining(session) > 0
+    (
+      (session.endsAt && sessionRemaining(session) > 0) ||
+      !session.endsAt
+    )
   ));
+}
+
+function fifaTabSummary(session) {
+  const count = Number(session.gameCount || 1);
+  return `${count} FC26 game${count === 1 ? "" : "s"}`;
 }
 
 function renderGamingSessions(sessions = currentGamingSessions) {
@@ -367,11 +374,18 @@ function renderGamingSessions(sessions = currentGamingSessions) {
   gamingBayTimers.innerHTML = stations
     .map((station) => {
       const active = activeSessionFor(station);
+      const isTimed = active && active.endsAt;
+      const timeText = !active ? "Free" : isTimed ? formatDuration(sessionRemaining(active)) : "Open";
+      const subtitle = !active
+        ? "No active session"
+        : isTimed
+          ? `${escapeHtml(active.customerName)} / ${escapeHtml(active.label)}`
+          : `${escapeHtml(active.customerName)} / ${fifaTabSummary(active)}`;
       return `
         <article class="bay-timer-card ${station === "Red Bay" ? "bay-timer-card--red" : "bay-timer-card--yellow"}" data-bay-timer="${escapeHtml(station)}">
           <span>${station}</span>
-          <strong data-bay-time>${active ? formatDuration(sessionRemaining(active)) : "Free"}</strong>
-          <small data-bay-subtitle>${active ? `${escapeHtml(active.customerName)} / ${escapeHtml(active.label)}` : "No timed session running"}</small>
+          <strong data-bay-time>${timeText}</strong>
+          <small data-bay-subtitle>${subtitle}</small>
         </article>
       `;
     })
@@ -390,22 +404,33 @@ function renderGamingSessions(sessions = currentGamingSessions) {
       .map((session) => {
         const remaining = sessionRemaining(session);
         const isRunning = session.status === "running";
-        const status = isRunning && remaining <= 0 ? "Time up" : session.status;
+        const isTimed = !!session.endsAt;
+        const isFifaTab = isRunning && !isTimed && session.sessionType === "fifa";
+        let smallText;
+        if (isRunning && isTimed) {
+          const status = remaining <= 0 ? "Time up" : "running";
+          smallText = `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}`;
+        } else if (isFifaTab) {
+          smallText = `Open tab / ${fifaTabSummary(session)}`;
+        } else {
+          smallText = session.status;
+        }
         return `
           <article class="admin-menu-row">
             <div>
               <strong>${escapeHtml(session.customerName)} / ${escapeHtml(session.station)}</strong>
               <span>${escapeHtml(session.label)} / ${money(session.total)} / ${escapeHtml(session.paymentMode)} / ${new Date(session.startedAt).toLocaleString("en-IN")}</span>
-              <small${isRunning ? ` data-session-timer="${escapeHtml(session.id)}"` : ""}>${isRunning ? `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}` : status}</small>
+              <small${isRunning ? ` data-session-timer="${escapeHtml(session.id)}"` : ""}>${smallText}</small>
               ${session.note ? `<small>${escapeHtml(session.note)}</small>` : ""}
             </div>
             <div class="row-actions">
-              ${isRunning ? `
+              ${isRunning && isTimed ? `
                 <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="30-min">+30 min</button>
                 <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="60-min">+1 hr</button>
                 <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="fifa">+1 FC26</button>
-                <button type="button" data-action="complete-session" data-id="${session.id}">Done</button>
               ` : ""}
+              ${isFifaTab ? `<button type="button" data-action="add-game" data-id="${session.id}">+1 game</button>` : ""}
+              ${isRunning ? `<button type="button" data-action="complete-session" data-id="${session.id}">Done</button>` : ""}
               <button type="button" data-action="delete-session" data-id="${session.id}">Remove</button>
             </div>
           </article>
@@ -438,6 +463,22 @@ function renderGamingSessions(sessions = currentGamingSessions) {
     });
   });
 
+  gamingSessionList.querySelectorAll("[data-action='add-game']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await fetchJson(`/api/gaming-sessions/${button.dataset.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ addGame: true })
+        });
+        setMessage(gamingMessage, "FC26 game added to tab.", "success");
+        loadGamingSessions();
+      } catch (error) {
+        setMessage(gamingMessage, error.message, "error");
+      }
+    });
+  });
+
   gamingSessionList.querySelectorAll("[data-action='delete-session']").forEach((button) => {
     button.addEventListener("click", async () => {
       await fetchJson(`/api/gaming-sessions/${button.dataset.id}`, { method: "DELETE" });
@@ -456,20 +497,17 @@ function updateGamingTimers() {
     const card = gamingBayTimers.querySelector(`[data-bay-timer="${station}"]`);
     if (!card) return;
     const active = activeSessionFor(station);
+    if (!active || !active.endsAt) return;
     const timeEl = card.querySelector("[data-bay-time]");
-    const subtitleEl = card.querySelector("[data-bay-subtitle]");
-    if (timeEl) timeEl.textContent = active ? formatDuration(sessionRemaining(active)) : "Free";
-    if (subtitleEl) subtitleEl.textContent = active
-      ? `${active.customerName} / ${active.label}`
-      : "No timed session running";
+    if (timeEl) timeEl.textContent = formatDuration(sessionRemaining(active));
   });
 
   currentGamingSessions.forEach((session) => {
-    if (session.status !== "running") return;
+    if (session.status !== "running" || !session.endsAt) return;
     const el = gamingSessionList.querySelector(`[data-session-timer="${session.id}"]`);
     if (!el) return;
     const remaining = sessionRemaining(session);
-    const status = remaining <= 0 ? "Time up" : session.status;
+    const status = remaining <= 0 ? "Time up" : "running";
     el.textContent = `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}`;
   });
 }
