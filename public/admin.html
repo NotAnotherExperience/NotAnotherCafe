@@ -23,6 +23,9 @@
       <nav class="nav-links" aria-label="Vibe Officers navigation">
         <a href="/">Back to Menu</a>
         <a href="#menuAdmin">Menu</a>
+        <a href="#posAdmin">POS</a>
+        <a href="#gamingAdmin">Gaming</a>
+        <a href="#expenseAdmin">Expenses</a>
         <button id="logoutButton" class="nav-button" type="button">Logout</button>
       </nav>
     </header>
@@ -59,11 +62,19 @@
           </label>
           <label>
             Section
-            <input name="subcategory" type="text" placeholder="Example: Iced, Hot, GG Snack" />
+            <select name="subcategory">
+              <option value="GG Snack">GG Snack</option>
+              <option value="Iced">Iced</option>
+              <option value="Hot">Hot</option>
+            </select>
           </label>
           <label>
             Price
             <input name="price" type="number" min="0" step="1" placeholder="Price in Rs" required />
+          </label>
+          <label>
+            About this item
+            <textarea name="description" rows="2" maxlength="120" placeholder="One line about what makes it worth ordering."></textarea>
           </label>
           <div class="admin-actions">
             <button class="primary-action" type="submit">Save item</button>
@@ -115,7 +126,7 @@
         </section>
       </section>
 
-      <section class="admin-grid pos-admin-grid" aria-label="POS sales tool">
+      <section id="posAdmin" class="admin-grid pos-admin-grid" aria-label="POS sales tool">
         <form id="posForm" class="form-surface admin-form">
           <div>
             <p class="eyebrow">POS</p>
@@ -159,6 +170,124 @@
           <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1POBAQQlbQM1hsI_ZJKEavnivdHhsQ24EcZGeM0dRpeI/edit?gid=923436773#gid=923436773" target="_blank" rel="noreferrer">Open Google Sheet</a>
           <div id="posSalesList" class="pos-sales-list"></div>
         </section>
+      </section>
+
+      <section id="gamingAdmin" class="admin-grid billing-admin-grid" aria-label="PlayStation gaming billing">
+        <form id="gamingForm" class="form-surface admin-form">
+          <div>
+            <p class="eyebrow">Gaming POS</p>
+            <h2>PlayStation billing</h2>
+          </div>
+          <label>
+            Customer name
+            <input name="customerName" type="text" maxlength="48" placeholder="Who is playing?" required />
+          </label>
+          <fieldset>
+            <legend>Bay</legend>
+            <div class="radio-list compact-radio-list">
+              <label class="radio-item">
+                <input name="station" type="radio" value="Red Bay" required />
+                <span>Red Bay</span>
+              </label>
+              <label class="radio-item">
+                <input name="station" type="radio" value="Yellow Bay" required />
+                <span>Yellow Bay</span>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Bill type</legend>
+            <div class="radio-list compact-radio-list">
+              <label class="radio-item">
+                <input name="sessionType" type="radio" value="30-min" required />
+                <span>30 min / Rs 100</span>
+              </label>
+              <label class="radio-item">
+                <input name="sessionType" type="radio" value="60-min" required />
+                <span>1 hr / Rs 180</span>
+              </label>
+              <label class="radio-item">
+                <input name="sessionType" type="radio" value="fifa" required />
+                <span>FC26 game / Rs 70</span>
+              </label>
+            </div>
+          </fieldset>
+          <label>
+            Payment
+            <select name="paymentMode" required>
+              <option value="UPI">UPI</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label>
+            Note
+            <input name="note" type="text" maxlength="90" placeholder="Controller, match, or counter note" />
+          </label>
+          <div class="pos-total-preview" id="gamingTotalPreview">Gaming bill: Rs 0</div>
+          <button class="primary-action" type="submit">Start / log gaming bill</button>
+          <p id="gamingMessage" class="form-message" role="status"></p>
+        </form>
+
+        <section class="form-surface pos-log-panel" aria-label="Gaming session log">
+          <div>
+            <p class="eyebrow">Bay timers</p>
+            <h2>Red Bay / Yellow Bay</h2>
+          </div>
+          <div id="gamingBayTimers" class="bay-timer-grid"></div>
+          <div id="gamingSessionList" class="pos-sales-list"></div>
+        </section>
+      </section>
+
+      <section id="expenseAdmin" class="admin-grid billing-admin-grid" aria-label="Expense tracker">
+        <form id="expenseForm" class="form-surface admin-form">
+          <div>
+            <p class="eyebrow">Expenses</p>
+            <h2>Money out</h2>
+          </div>
+          <label>
+            Expense name
+            <input name="title" type="text" maxlength="80" placeholder="Example: Lays packets" required />
+          </label>
+          <label>
+            Category
+            <select name="category" required>
+              <option value="Stock">Stock</option>
+              <option value="Cafe">Cafe</option>
+              <option value="Gaming">Gaming</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label>
+            Amount
+            <input name="amount" type="number" min="1" step="1" placeholder="Expense in Rs" required />
+          </label>
+          <label>
+            Note
+            <input name="note" type="text" maxlength="120" placeholder="Optional note" />
+          </label>
+          <button class="primary-action" type="submit">Add expense</button>
+          <p id="expenseMessage" class="form-message" role="status"></p>
+        </form>
+
+        <section class="form-surface pos-log-panel" aria-label="Expense log">
+          <div>
+            <p class="eyebrow">Cost log</p>
+            <h2>Expenses</h2>
+          </div>
+          <div id="expenseList" class="pos-sales-list"></div>
+        </section>
+      </section>
+
+      <section class="form-surface billing-chart-panel" aria-label="Daily billing graph">
+        <div>
+          <p class="eyebrow">Daily picture</p>
+          <h2>Sales, gaming, expenses</h2>
+        </div>
+        <div id="billingSummary" class="billing-summary-grid"></div>
+        <div id="dailySalesChart" class="daily-sales-chart"></div>
       </section>
     </main>
 

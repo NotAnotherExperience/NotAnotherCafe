@@ -40,7 +40,7 @@
       "alias": "Not Another Chief Vibes Officer",
       "displayName": "Chief Vibes Officer",
       "joinedAt": "2026-05-08T21:02:35.993Z",
-      "updatedAt": "2026-05-12T06:59:35.627Z"
+      "updatedAt": "2026-05-12T22:28:03.887Z"
     }
   ],
   "posSales": [],
@@ -49,8 +49,8 @@
     "category": "GG Bev",
     "name": "Apple Crusher",
     "price": 100,
-    "note": "GG Bev provided by WuDawg & Wassa in the community!",
-    "updatedAt": "2026-05-12T11:06:26.310Z"
+    "note": "GG Bev provided by WuDawg & Wazza in the community!",
+    "updatedAt": "2026-05-12T22:18:18.103Z"
   },
   "menu": [
     {
@@ -161,9 +161,18 @@
     {
       "id": "peach-ass-cola",
       "category": "GG Bev",
-      "subcategory": "GG Bev provided by WuDawg & Wassa in the community!",
+      "subcategory": "Iced",
       "name": "Peach Ass Cola",
-      "price": 80
+      "price": 80,
+      "description": "GG Bev provided by WuDawg & Wazza of the community!"
+    },
+    {
+      "id": "peach-diet-cola-fake",
+      "category": "GG Bev",
+      "subcategory": "Iced",
+      "name": "Peach Diet Cola Fake",
+      "price": 100,
+      "description": "GG Bev provided by Wedh of the community!"
     }
   ]
 }

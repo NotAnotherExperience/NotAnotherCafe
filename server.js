@@ -43,6 +43,8 @@ const DEFAULT_DB = {
   bookings: [],
   communityMembers: [],
   posSales: [],
+  expenses: [],
+  gamingSessions: [],
   specialToday: null,
   menu: [
     { id: "gg-salad-blue", category: "GG Snack", subcategory: "GG Snack", name: "Blue Lays", price: 60 },
@@ -100,6 +102,8 @@ function writeDb(db) {
 function normalizeDb(db) {
   if (!Array.isArray(db.communityMembers)) db.communityMembers = [];
   if (!Array.isArray(db.posSales)) db.posSales = [];
+  if (!Array.isArray(db.expenses)) db.expenses = [];
+  if (!Array.isArray(db.gamingSessions)) db.gamingSessions = [];
   if (!Array.isArray(db.menu)) db.menu = [...DEFAULT_DB.menu];
   if (!Object.prototype.hasOwnProperty.call(db, "specialToday")) db.specialToday = null;
   return db;
@@ -378,7 +382,16 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/menu") {
-    sendJson(res, 200, { menu: db.menu });
+    const CATEGORY_ORDER = { "GG Snack": 0, "GG Bev": 1 };
+    const SUBCATEGORY_ORDER = { "GG Snack": 0, "Iced": 1, "Hot": 2 };
+    const sorted = [...db.menu].sort((a, b) => {
+      const catDiff = (CATEGORY_ORDER[a.category] ?? 99) - (CATEGORY_ORDER[b.category] ?? 99);
+      if (catDiff !== 0) return catDiff;
+      const subDiff = (SUBCATEGORY_ORDER[a.subcategory] ?? 99) - (SUBCATEGORY_ORDER[b.subcategory] ?? 99);
+      if (subDiff !== 0) return subDiff;
+      return a.name.localeCompare(b.name);
+    });
+    sendJson(res, 200, { menu: sorted });
     return;
   }
 
@@ -471,6 +484,7 @@ async function handleApi(req, res, pathname) {
       const category = String(body.category || "").trim();
       const subcategory = String(body.subcategory || "").trim();
       const price = Number(body.price);
+      const description = String(body.description || "").trim().slice(0, 120);
 
       if (!name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
         sendJson(res, 400, { error: "Menu item needs a name, GG Snack/GG Bev category, and a valid price." });
@@ -485,7 +499,7 @@ async function handleApi(req, res, pathname) {
         suffix += 1;
       }
 
-      const item = { id, category, subcategory: subcategory || category, name, price: Math.round(price) };
+      const item = { id, category, subcategory: subcategory || category, name, price: Math.round(price), description };
       db.menu.push(item);
       writeDb(db);
       sendJson(res, 201, { item });
@@ -505,6 +519,7 @@ async function handleApi(req, res, pathname) {
       const category = String(body.category || "").trim();
       const subcategory = String(body.subcategory || "").trim();
       const price = Number(body.price);
+      const description = String(body.description || "").trim().slice(0, 120);
 
       if (!item || !name || !["GG Snack", "GG Bev"].includes(category) || !Number.isFinite(price) || price < 0) {
         sendJson(res, 400, { error: "Choose an existing item and enter valid menu details." });
@@ -515,6 +530,7 @@ async function handleApi(req, res, pathname) {
       item.category = category;
       item.subcategory = subcategory || category;
       item.price = Math.round(price);
+      item.description = description;
       writeDb(db);
       sendJson(res, 200, { item });
     } catch (error) {
@@ -623,9 +639,170 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "DELETE" && pathname.startsWith("/api/pos-sales/")) {
+    if (!requireAdmin(req, res)) return;
+    const saleId = decodeURIComponent(pathname.replace("/api/pos-sales/", ""));
+    const saleLength = db.posSales.length;
+    db.posSales = db.posSales.filter((sale) => sale.id !== saleId);
+    if (db.posSales.length === saleLength) {
+      sendJson(res, 404, { error: "POS sale not found." });
+      return;
+    }
+    writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (req.method === "DELETE" && pathname === "/api/pos-sales") {
     if (!requireAdmin(req, res)) return;
     db.posSales = [];
+    writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/expenses") {
+    if (!requireAdmin(req, res)) return;
+    const expenses = [...db.expenses].sort((a, b) => parseDate(b.spentAt) - parseDate(a.spentAt));
+    sendJson(res, 200, { expenses });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/expenses") {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const body = await readBody(req);
+      const title = String(body.title || "").trim().slice(0, 80);
+      const category = String(body.category || "Cafe").trim().slice(0, 40) || "Cafe";
+      const amount = Math.max(0, Math.round(Number(body.amount) || 0));
+      const note = String(body.note || "").trim().slice(0, 120);
+
+      if (!title || amount <= 0) {
+        sendJson(res, 400, { error: "Expense needs a name and an amount above 0." });
+        return;
+      }
+
+      const expense = {
+        id: crypto.randomUUID(),
+        title,
+        category,
+        amount,
+        note,
+        spentAt: new Date().toISOString()
+      };
+
+      db.expenses.push(expense);
+      writeDb(db);
+      sendJson(res, 201, { expense });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "DELETE" && pathname.startsWith("/api/expenses/")) {
+    if (!requireAdmin(req, res)) return;
+    const expenseId = decodeURIComponent(pathname.replace("/api/expenses/", ""));
+    const expenseLength = db.expenses.length;
+    db.expenses = db.expenses.filter((expense) => expense.id !== expenseId);
+    if (db.expenses.length === expenseLength) {
+      sendJson(res, 404, { error: "Expense not found." });
+      return;
+    }
+    writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/gaming-sessions") {
+    if (!requireAdmin(req, res)) return;
+    const sessions = [...db.gamingSessions].sort((a, b) => parseDate(b.startedAt) - parseDate(a.startedAt));
+    sendJson(res, 200, { sessions });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/gaming-sessions") {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const body = await readBody(req);
+      const station = String(body.station || "").trim();
+      const customerName = String(body.customerName || "").trim().slice(0, 48);
+      const sessionType = String(body.sessionType || "").trim();
+      const paymentMode = String(body.paymentMode || "UPI").trim().slice(0, 24) || "UPI";
+      const note = String(body.note || "").trim().slice(0, 90);
+      const sessionTypes = {
+        "30-min": { label: "30 min PS5 session", durationMinutes: 30, total: 100, timed: true },
+        "60-min": { label: "1 hr PS5 session", durationMinutes: 60, total: 180, timed: true },
+        fifa: { label: "FC26 / FIFA game", durationMinutes: 0, total: 70, timed: false }
+      };
+      const plan = sessionTypes[sessionType];
+
+      if (!["Red Bay", "Yellow Bay"].includes(station) || !plan || !customerName) {
+        sendJson(res, 400, { error: "Choose a bay, enter customer name, and select a gaming bill." });
+        return;
+      }
+
+      const activeInStation = db.gamingSessions.some((session) => (
+        session.station === station &&
+        session.status === "running" &&
+        session.endsAt &&
+        parseDate(session.endsAt) > new Date()
+      ));
+
+      if (plan.timed && activeInStation) {
+        sendJson(res, 409, { error: `${station} already has a running timed session.` });
+        return;
+      }
+
+      const startedAt = new Date();
+      const session = {
+        id: crypto.randomUUID(),
+        station,
+        customerName,
+        sessionType,
+        label: plan.label,
+        durationMinutes: plan.durationMinutes,
+        total: plan.total,
+        paymentMode,
+        note,
+        status: plan.timed ? "running" : "logged",
+        startedAt: startedAt.toISOString(),
+        endsAt: plan.timed ? new Date(startedAt.getTime() + plan.durationMinutes * 60 * 1000).toISOString() : null
+      };
+
+      db.gamingSessions.push(session);
+      writeDb(db);
+      sendJson(res, 201, { session });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/gaming-sessions/")) {
+    if (!requireAdmin(req, res)) return;
+    const sessionId = decodeURIComponent(pathname.replace("/api/gaming-sessions/", ""));
+    const session = db.gamingSessions.find((entry) => entry.id === sessionId);
+    if (!session) {
+      sendJson(res, 404, { error: "Gaming session not found." });
+      return;
+    }
+    session.status = "complete";
+    session.completedAt = new Date().toISOString();
+    writeDb(db);
+    sendJson(res, 200, { session });
+    return;
+  }
+
+  if (req.method === "DELETE" && pathname.startsWith("/api/gaming-sessions/")) {
+    if (!requireAdmin(req, res)) return;
+    const sessionId = decodeURIComponent(pathname.replace("/api/gaming-sessions/", ""));
+    const sessionLength = db.gamingSessions.length;
+    db.gamingSessions = db.gamingSessions.filter((session) => session.id !== sessionId);
+    if (db.gamingSessions.length === sessionLength) {
+      sendJson(res, 404, { error: "Gaming session not found." });
+      return;
+    }
     writeDb(db);
     sendJson(res, 200, { ok: true });
     return;

@@ -122,6 +122,18 @@ let memberCount = Number(localStorage.getItem("gg-founder-count") || 47);
 let profile = JSON.parse(localStorage.getItem("gg-community-profile") || "null");
 let savedStats = JSON.parse(localStorage.getItem("gg-menu-stats") || "{}");
 
+function readCookie(name) {
+  const match = document.cookie.split("; ").find((c) => c.startsWith(name + "="));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
+function writeCookie(name, value, days) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; SameSite=Lax; Path=/; Max-Age=${days * 24 * 60 * 60}`;
+}
+
+let savedPhone = readCookie("gg_phone") || localStorage.getItem("gg-member-phone") || profile?.phone || "";
+let savedDisplayName = readCookie("gg_dname") || localStorage.getItem("gg-member-display-name") || profile?.displayName || "";
+
 function money(value) {
   if (Number(value) === 0) return "Price TBD";
   return `Rs ${value}`;
@@ -145,14 +157,15 @@ function currentAlias() {
 }
 
 function enrichMenu(menu) {
-  return menu.map((item) => ({
-    ...item,
-    ...(itemDetails[item.id] || {
-      description: "A GG counter pick the room keeps noticing.",
-      vouches: 0
-    }),
-    vouches: savedStats[item.id]?.vouches ?? itemDetails[item.id]?.vouches ?? 0
-  }));
+  return menu.map((item) => {
+    const details = itemDetails[item.id] || {};
+    return {
+      ...details,
+      ...item,
+      description: item.description || details.description || "A GG counter pick the room keeps noticing.",
+      vouches: savedStats[item.id]?.vouches ?? details.vouches ?? 0
+    };
+  });
 }
 
 function saveMenuStats() {
@@ -185,9 +198,19 @@ async function restoreProfileFromServer() {
     const data = await response.json();
     if (response.ok && data.member) {
       persistProfile(data.member);
+      return;
+    }
+    // Cookie was valid but member missing from DB (e.g. server cold-start) — silently re-register
+    if (response.status === 404 && savedPhone && savedDisplayName) {
+      const reData = await postJson("/api/community-members", {
+        phone: savedPhone,
+        identity: savedDisplayName,
+        displayName: savedDisplayName
+      });
+      persistProfile(reData.member || { phone: savedPhone, displayName: savedDisplayName, alias: makeAlias(savedDisplayName) });
     }
   } catch {
-    // local-only guests can continue without a restored profile
+    // silent fail — user will see pre-filled form
   }
 }
 
@@ -216,6 +239,14 @@ function routeFromHash() {
 function persistProfile(nextProfile) {
   profile = nextProfile;
   localStorage.setItem("gg-community-profile", JSON.stringify(profile));
+  if (nextProfile?.phone) {
+    writeCookie("gg_phone", nextProfile.phone, 180);
+    writeCookie("gg_dname", nextProfile.displayName || "", 180);
+    localStorage.setItem("gg-member-phone", nextProfile.phone);
+    localStorage.setItem("gg-member-display-name", nextProfile.displayName || "");
+    savedPhone = nextProfile.phone;
+    savedDisplayName = nextProfile.displayName || "";
+  }
   renderProfileState();
 }
 
@@ -229,6 +260,12 @@ function renderProfileState() {
   if (profile) {
     profileForm.elements.phone.value = profile.phone;
     profileForm.elements.displayName.value = profile.displayName || "";
+  } else if (savedPhone) {
+    profileForm.elements.phone.value = savedPhone;
+    if (savedDisplayName) {
+      profileForm.elements.displayName.value = savedDisplayName;
+      aliasPreview.textContent = makeAlias(savedDisplayName);
+    }
   }
 }
 
