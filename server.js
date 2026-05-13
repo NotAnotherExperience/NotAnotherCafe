@@ -787,10 +787,35 @@ async function handleApi(req, res, pathname) {
       sendJson(res, 404, { error: "Gaming session not found." });
       return;
     }
-    session.status = "complete";
-    session.completedAt = new Date().toISOString();
-    writeDb(db);
-    sendJson(res, 200, { session });
+    try {
+      const body = await readBody(req);
+      const extendTypes = {
+        "30-min": { minutes: 30, amount: 100 },
+        "60-min": { minutes: 60, amount: 180 },
+        fifa: { minutes: 17, amount: 70 }
+      };
+      const extend = extendTypes[body.extendType];
+      if (extend) {
+        if (session.status !== "running" || !session.endsAt) {
+          sendJson(res, 400, { error: "Only running timed sessions can be extended." });
+          return;
+        }
+        const currentEnd = parseDate(session.endsAt);
+        const base = currentEnd && currentEnd > new Date() ? currentEnd : new Date();
+        session.endsAt = new Date(base.getTime() + extend.minutes * 60 * 1000).toISOString();
+        session.total = Number(session.total || 0) + extend.amount;
+        session.durationMinutes = Number(session.durationMinutes || 0) + extend.minutes;
+        writeDb(db);
+        sendJson(res, 200, { session });
+        return;
+      }
+      session.status = "complete";
+      session.completedAt = new Date().toISOString();
+      writeDb(db);
+      sendJson(res, 200, { session });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
     return;
   }
 

@@ -368,10 +368,10 @@ function renderGamingSessions(sessions = currentGamingSessions) {
     .map((station) => {
       const active = activeSessionFor(station);
       return `
-        <article class="bay-timer-card ${station === "Red Bay" ? "bay-timer-card--red" : "bay-timer-card--yellow"}">
+        <article class="bay-timer-card ${station === "Red Bay" ? "bay-timer-card--red" : "bay-timer-card--yellow"}" data-bay-timer="${escapeHtml(station)}">
           <span>${station}</span>
-          <strong>${active ? formatDuration(sessionRemaining(active)) : "Free"}</strong>
-          <small>${active ? `${escapeHtml(active.customerName)} / ${escapeHtml(active.label)}` : "No timed session running"}</small>
+          <strong data-bay-time>${active ? formatDuration(sessionRemaining(active)) : "Free"}</strong>
+          <small data-bay-subtitle>${active ? `${escapeHtml(active.customerName)} / ${escapeHtml(active.label)}` : "No timed session running"}</small>
         </article>
       `;
     })
@@ -396,11 +396,16 @@ function renderGamingSessions(sessions = currentGamingSessions) {
             <div>
               <strong>${escapeHtml(session.customerName)} / ${escapeHtml(session.station)}</strong>
               <span>${escapeHtml(session.label)} / ${money(session.total)} / ${escapeHtml(session.paymentMode)} / ${new Date(session.startedAt).toLocaleString("en-IN")}</span>
-              <small>${isRunning ? `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}` : status}</small>
+              <small${isRunning ? ` data-session-timer="${escapeHtml(session.id)}"` : ""}>${isRunning ? `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}` : status}</small>
               ${session.note ? `<small>${escapeHtml(session.note)}</small>` : ""}
             </div>
             <div class="row-actions">
-              ${isRunning ? `<button type="button" data-action="complete-session" data-id="${session.id}">Done</button>` : ""}
+              ${isRunning ? `
+                <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="30-min">+30 min</button>
+                <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="60-min">+1 hr</button>
+                <button type="button" data-action="extend-session" data-id="${session.id}" data-extend="fifa">+1 FC26</button>
+                <button type="button" data-action="complete-session" data-id="${session.id}">Done</button>
+              ` : ""}
               <button type="button" data-action="delete-session" data-id="${session.id}">Remove</button>
             </div>
           </article>
@@ -417,6 +422,22 @@ function renderGamingSessions(sessions = currentGamingSessions) {
     });
   });
 
+  gamingSessionList.querySelectorAll("[data-action='extend-session']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await fetchJson(`/api/gaming-sessions/${button.dataset.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ extendType: button.dataset.extend })
+        });
+        setMessage(gamingMessage, "Session extended.", "success");
+        loadGamingSessions();
+      } catch (error) {
+        setMessage(gamingMessage, error.message, "error");
+      }
+    });
+  });
+
   gamingSessionList.querySelectorAll("[data-action='delete-session']").forEach((button) => {
     button.addEventListener("click", async () => {
       await fetchJson(`/api/gaming-sessions/${button.dataset.id}`, { method: "DELETE" });
@@ -425,6 +446,32 @@ function renderGamingSessions(sessions = currentGamingSessions) {
     });
   });
   renderReport();
+}
+
+function updateGamingTimers() {
+  if (!currentGamingSessions.length) return;
+  const stations = ["Red Bay", "Yellow Bay"];
+
+  stations.forEach((station) => {
+    const card = gamingBayTimers.querySelector(`[data-bay-timer="${station}"]`);
+    if (!card) return;
+    const active = activeSessionFor(station);
+    const timeEl = card.querySelector("[data-bay-time]");
+    const subtitleEl = card.querySelector("[data-bay-subtitle]");
+    if (timeEl) timeEl.textContent = active ? formatDuration(sessionRemaining(active)) : "Free";
+    if (subtitleEl) subtitleEl.textContent = active
+      ? `${active.customerName} / ${active.label}`
+      : "No timed session running";
+  });
+
+  currentGamingSessions.forEach((session) => {
+    if (session.status !== "running") return;
+    const el = gamingSessionList.querySelector(`[data-session-timer="${session.id}"]`);
+    if (!el) return;
+    const remaining = sessionRemaining(session);
+    const status = remaining <= 0 ? "Time up" : session.status;
+    el.textContent = `Timer: ${remaining > 0 ? formatDuration(remaining) : "00:00"} / ${status}`;
+  });
 }
 
 async function loadGamingSessions() {
@@ -697,7 +744,7 @@ logoutButton.addEventListener("click", async () => {
 
 verifyAdminSession();
 setInterval(verifyAdminSession, 60 * 1000);
-setInterval(() => renderGamingSessions(), 1000);
+setInterval(updateGamingTimers, 1000);
 updateSubcategoryOptions(menuForm.elements.category.value);
 updateGamingTotal();
 loadMenu();
